@@ -175,7 +175,7 @@ export function PaginaComprovacoes({
             </p>
           </div>
         </header>
-        <main className="p-8">
+        <main className="flex-1 bg-cinza-claro p-8">
           <div className="rounded-xl border bg-card p-10 text-center text-sm text-muted-foreground">
             Indicador não encontrado ou backend indisponível.
           </div>
@@ -186,7 +186,7 @@ export function PaginaComprovacoes({
 
   if (!planejamento || !indicador) {
     return (
-      <main className="flex flex-1 items-center justify-center p-8">
+      <main className="flex flex-1 items-center justify-center bg-cinza-claro p-8">
         <div className="h-2 w-40 overflow-hidden rounded-full bg-muted">
           <div className="h-full w-1/3 animate-pulse rounded-full bg-bege" />
         </div>
@@ -217,7 +217,7 @@ export function PaginaComprovacoes({
         </span>
       </header>
 
-      <main className="flex flex-col gap-6 p-8">
+      <main className="flex flex-1 flex-col gap-6 bg-cinza-claro p-8">
         <section className="rounded-xl border bg-card">
           <div className="flex flex-col gap-4 p-5">
             <div className="flex items-center justify-between gap-2">
@@ -233,7 +233,7 @@ export function PaginaComprovacoes({
               </span>
               <span className="flex items-center gap-2 text-muted-foreground">
                 <User className="h-4 w-4" />
-                Responsável: {indicador.responsavel?.nome ?? "—"}
+                Responsável: {indicador.unidade?.nome ?? "—"}
               </span>
             </div>
           </div>

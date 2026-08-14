@@ -20,10 +20,10 @@ import {
   createPlanejamento,
   fetchObjetivos,
   fetchPlanejamento,
-  fetchResponsaveis,
+  fetchUnidades,
   type Objetivo,
   type Planejamento,
-  type Responsavel,
+  type Unidade,
 } from "@/lib/api";
 
 type IndicadorForm = {
@@ -32,7 +32,7 @@ type IndicadorForm = {
   formula: string;
   orientacao: string;
   prazo: string;
-  responsavelId: string;
+  unidadeId: string;
 };
 
 function indicadorVazio(): IndicadorForm {
@@ -42,7 +42,7 @@ function indicadorVazio(): IndicadorForm {
     formula: "",
     orientacao: "",
     prazo: "",
-    responsavelId: "",
+    unidadeId: "",
   };
 }
 
@@ -50,7 +50,7 @@ export function Planejamento() {
   const router = useRouter();
   const [itens, setItens] = useState<Planejamento[]>([]);
   const [objetivos, setObjetivos] = useState<Objetivo[]>([]);
-  const [responsaveis, setResponsaveis] = useState<Responsavel[]>([]);
+  const [unidades, setUnidades] = useState<Unidade[]>([]);
   const [open, setOpen] = useState(false);
   const [objetivoId, setObjetivoId] = useState("");
   const [nome, setNome] = useState("");
@@ -69,8 +69,8 @@ export function Planejamento() {
       .catch(() => {
         // Backend offline: mantém o select vazio.
       });
-    fetchResponsaveis()
-      .then(setResponsaveis)
+    fetchUnidades()
+      .then(setUnidades)
       .catch(() => {
         // Backend offline: mantém o select vazio.
       });
@@ -125,8 +125,8 @@ export function Planejamento() {
         formula: indicador.formula,
         orientacao: indicador.orientacao,
         prazo: indicador.prazo || null,
-        responsavel_id: indicador.responsavelId
-          ? Number(indicador.responsavelId)
+        unidade_id: indicador.unidadeId
+          ? Number(indicador.unidadeId)
           : null,
       })),
     };
@@ -162,7 +162,7 @@ export function Planejamento() {
         </Button>
       </header>
 
-      <main className="p-8">
+      <main className="flex-1 bg-cinza-claro p-8">
         <div className="overflow-x-auto rounded-xl border bg-card">
           <table className="w-full text-sm">
             <thead>
@@ -311,6 +311,7 @@ export function Planejamento() {
                           >
                             <Trash />
                           </Button>
+                          // ADICIONAR STATUS
                         )}
                       </div>
 
@@ -417,25 +418,25 @@ export function Planejamento() {
                             </Label>
                             <select
                               id={`ind-responsavel-${index}`}
-                              value={indicador.responsavelId}
+                              value={indicador.unidadeId}
                               onChange={(event) =>
                                 atualizarIndicador(
                                   index,
-                                  "responsavelId",
+                                  "unidadeId",
                                   event.target.value,
                                 )
                               }
                               className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30"
                             >
                               <option value="">
-                                Selecione um responsável...
+                                Selecione uma unidade...
                               </option>
-                              {responsaveis.map((responsavel) => (
+                              {unidades.map((unidade) => (
                                 <option
-                                  key={responsavel.id}
-                                  value={responsavel.id}
+                                  key={unidade.id}
+                                  value={unidade.id}
                                 >
-                                  {responsavel.nome}
+                                  {unidade.nome}
                                 </option>
                               ))}
                             </select>

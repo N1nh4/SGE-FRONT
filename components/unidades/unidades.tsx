@@ -1,0 +1,244 @@
+"use client";
+
+import { useEffect, useState, type FormEvent } from "react";
+import { CalendarDays, LoaderCircle, Pencil, Plus, Trash } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
+import {
+  createUnidade,
+  deleteUnidade,
+  fetchUnidades,
+  updateUnidade,
+  type Unidade,
+} from "@/lib/api";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+function formatarData(iso: string): string {
+  const [ano, mes, dia] = iso.split("T")[0].split("-");
+  return `${dia}/${mes}/${ano}`;
+}
+
+export function Unidades() {
+  const [unidades, setUnidades] = useState<Unidade[]>([]);
+  const [open, setOpen] = useState(false);
+  const [editando, setEditando] = useState<Unidade | null>(null);
+  const [excluindo, setExcluindo] = useState<Unidade | null>(null);
+  const [nome, setNome] = useState("");
+  const [salvando, setSalvando] = useState(false);
+
+  useEffect(() => {
+    fetchUnidades()
+      .then(setUnidades)
+      .catch(() => {
+        // Backend offline: mantém a lista local.
+      });
+  }, []);
+
+  function abrirNovo() {
+    setEditando(null);
+    setNome("");
+    setOpen(true);
+  }
+
+  function abrirEdicao(unidade: Unidade) {
+    setEditando(unidade);
+    setNome(unidade.nome);
+    setOpen(true);
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!nome.trim()) return;
+    setSalvando(true);
+    try {
+      if (editando) {
+        const atualizada = await updateUnidade(editando.id, nome.trim());
+        setUnidades((prev) =>
+          prev.map((u) => (u.id === atualizada.id ? atualizada : u)),
+        );
+        toast.success("Unidade atualizada com sucesso.");
+      } else {
+        const criada = await createUnidade(nome.trim());
+        setUnidades((prev) => [...prev, criada]);
+        toast.success("Unidade criada com sucesso.");
+      }
+      setNome("");
+      setEditando(null);
+      setOpen(false);
+    } catch {
+      toast.error(
+        editando ? "Erro ao atualizar a unidade." : "Erro ao criar a unidade.",
+      );
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  async function confirmarExclusao() {
+    if (!excluindo) return;
+    try {
+      await deleteUnidade(excluindo.id);
+      setUnidades((prev) => prev.filter((u) => u.id !== excluindo.id));
+      toast.success("Unidade excluída com sucesso.");
+    } catch {
+      toast.error("Erro ao excluir a unidade.");
+    }
+    setExcluindo(null);
+  }
+
+  return (
+    <>
+      <header className="flex items-center justify-between gap-4 border-b px-8 py-6">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Unidades</h1>
+          <p className="text-sm text-muted-foreground">
+            Gerencie as unidades da organização.
+          </p>
+        </div>
+        <Button
+          onClick={abrirNovo}
+          className="cursor-pointer bg-bege hover:bg-bege/90"
+        >
+          <Plus />
+          Adicionar Unidade
+        </Button>
+      </header>
+
+      <main className="flex-1 bg-cinza-claro p-8">
+        {unidades.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Nenhuma unidade cadastrada ainda.
+          </p>
+        ) : (
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] items-start gap-6">
+            {unidades.map((unidade) => (
+              <article
+                key={unidade.id}
+                className="flex flex-col rounded-xl border bg-card p-5 shadow-sm transition-shadow hover:shadow-md"
+              >
+                <h2 className="mt-3 text-lg font-semibold leading-snug">
+                  {unidade.nome}
+                </h2>
+                {/* <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
+                  <CalendarDays className="h-4 w-4" />
+                  Criado em {formatarData(unidade.created_at)}
+                </div> */}
+                <div className="mt-auto flex items-center justify-end gap-2 pt-4">
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => abrirEdicao(unidade)}
+                    className="border border-solid border-black/[.08] rounded-mds bg-white hover:bg-white/90 text-azul-escuro cursor-pointer"
+                  >
+                    <Pencil />
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => setExcluindo(unidade)}
+                    className="bg-red-600/90 text-white hover:bg-red-600/80 cursor-pointer"
+                  >
+                    <Trash />
+                  </Button>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </main>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editando ? "Editar Unidade" : "Nova Unidade"}
+            </DialogTitle>
+            <DialogDescription>
+              {editando
+                ? "Altere o nome da unidade."
+                : "Preencha o nome da unidade para cadastrá-la."}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="grid gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="nome">Nome</Label>
+              <Input
+                id="nome"
+                value={nome}
+                onChange={(event) => setNome(event.target.value)}
+                placeholder="Ex.: Secretaria de Saúde"
+                className="focus-visible:ring-0 focus-visible:border-input"
+                required
+              />
+            </div>
+            <DialogFooter className="border-t-0 bg-transparent">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setOpen(false)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={salvando}
+                className="cursor-pointer bg-bege hover:bg-bege/90"
+              >
+                {salvando ? <LoaderCircle className="animate-spin" /> : null}
+                {editando ? "Salvar" : "Adicionar"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog
+        open={excluindo !== null}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) setExcluindo(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir unidade</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir a unidade{" "}
+              <strong>{excluindo?.nome}</strong>? Esta ação não pode ser
+              desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setExcluindo(null)}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmarExclusao}
+              className="bg-red-600 text-white hover:bg-red-600/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}

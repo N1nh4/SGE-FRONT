@@ -17,9 +17,7 @@ export type NovoObjetivo = {
   loa: string;
 };
 
-async function handleResponse<T>(
-  res: Response,
-): Promise<T | undefined> {
+async function handleResponse<T>(res: Response): Promise<T | undefined> {
   if (!res.ok) {
     throw new Error(`Erro na requisição (${res.status})`);
   }
@@ -32,9 +30,7 @@ export async function fetchObjetivos(): Promise<Objetivo[]> {
   return (await handleResponse<Objetivo[]>(res)) ?? [];
 }
 
-export async function createObjetivo(
-  dados: NovoObjetivo,
-): Promise<Objetivo> {
+export async function createObjetivo(dados: NovoObjetivo): Promise<Objetivo> {
   const res = await fetch(`${API_URL}/api/objetivos`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -79,7 +75,7 @@ export type ObjetivoResumo = {
   loa: string;
 };
 
-export type ResponsavelResumo = {
+export type UnidadeResumo = {
   id: number;
   nome: string;
 };
@@ -91,8 +87,8 @@ export type IndicadorPlanejamento = {
   formula: string;
   orientacao: string;
   prazo: string | null;
-  responsavel_id: number | null;
-  responsavel: ResponsavelResumo | null;
+  unidade_id: number | null;
+  unidade: UnidadeResumo | null;
   created_at: string;
   updated_at: string;
 };
@@ -113,7 +109,7 @@ export type NovoIndicador = {
   formula: string;
   orientacao: string;
   prazo: string | null;
-  responsavel_id: number | null;
+  unidade_id: number | null;
 };
 
 export type NovoPlanejamento = {
@@ -127,25 +123,13 @@ export async function fetchPlanejamento(): Promise<Planejamento[]> {
   return (await handleResponse<Planejamento[]>(res)) ?? [];
 }
 
-export async function fetchPlanejamentoById(
-  id: number,
-): Promise<Planejamento> {
+export async function fetchPlanejamentoById(id: number): Promise<Planejamento> {
   const res = await fetch(`${API_URL}/api/planejamento/${id}`);
   const detalhe = await handleResponse<Planejamento>(res);
   if (!detalhe) {
     throw new Error("Planejamento não encontrado");
   }
   return detalhe;
-}
-
-export type Responsavel = {
-  id: number;
-  nome: string;
-};
-
-export async function fetchResponsaveis(): Promise<Responsavel[]> {
-  const res = await fetch(`${API_URL}/api/responsaveis`);
-  return (await handleResponse<Responsavel[]>(res)) ?? [];
 }
 
 export async function createPlanejamento(
@@ -215,4 +199,52 @@ export async function deleteComprovacao(id: number): Promise<void> {
 
 export function urlArquivoComprovacao(id: number): string {
   return `${API_URL}/api/comprovacoes/${id}/arquivo`;
+}
+
+export type Unidade = {
+  id: number;
+  nome: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export async function fetchUnidades(): Promise<Unidade[]> {
+  const res = await fetch(`${API_URL}/api/unidades`);
+  return (await handleResponse<Unidade[]>(res)) ?? [];
+}
+
+export async function createUnidade(nome: string): Promise<Unidade> {
+  const res = await fetch(`${API_URL}/api/unidades`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nome }),
+  });
+  const criada = await handleResponse<Unidade>(res);
+  if (!criada) {
+    throw new Error("Resposta vazia ao criar unidade");
+  }
+  return criada;
+}
+
+export async function deleteUnidade(id: number): Promise<void> {
+  const res = await fetch(`${API_URL}/api/unidades/${id}`, {
+    method: "DELETE",
+  });
+  await handleResponse(res);
+}
+
+export async function updateUnidade(
+  id: number,
+  nome: string,
+): Promise<Unidade> {
+  const res = await fetch(`${API_URL}/api/unidades/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nome }),
+  });
+  const atualizada = await handleResponse<Unidade>(res);
+  if (!atualizada) {
+    throw new Error("Resposta vazia ao atualizar unidade");
+  }
+  return atualizada;
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { CalendarDays, Pencil, Plus, Trash } from "lucide-react";
+import Masonry from "react-masonry-css";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -64,6 +65,14 @@ const objetivosIniciais: Objetivo[] = [
 ];
 
 const ID_MOCK = 10_000;
+
+const breakpointColumns = {
+  default: 3,
+  1280: 3,
+  1024: 2,
+  768: 2,
+  640: 1,
+};
 
 export function Objetivos() {
   const [objetivos, setObjetivos] = useState(objetivosIniciais);
@@ -199,12 +208,16 @@ export function Objetivos() {
         </Button>
       </header>
 
-      <main className="p-8">
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
+      <main className="flex-1 bg-cinza-claro p-8">
+        <Masonry
+          breakpointCols={breakpointColumns}
+          className="flex w-auto -ml-4"
+          columnClassName="bg-clip-padding pl-4"
+        >
           {objetivos.map((objetivo) => (
             <article
               key={objetivo.id}
-              className="flex flex-col rounded-xl border bg-card p-5 shadow-sm transition-shadow hover:shadow-md"
+              className="mb-4 flex flex-col rounded-xl border bg-card p-5 shadow-sm transition-shadow hover:shadow-md"
             >
               <span className="border border-solid border-black/[.08] inline-flex w-fit rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
                 {objetivo.codigo}
@@ -250,7 +263,7 @@ export function Objetivos() {
               </div>
             </article>
           ))}
-        </div>
+        </Masonry>
       </main>
 
       <Dialog open={open} onOpenChange={setOpen}>
