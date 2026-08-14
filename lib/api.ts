@@ -147,6 +147,29 @@ export async function createPlanejamento(
   return criado;
 }
 
+export async function updatePlanejamento(
+  id: number,
+  dados: NovoPlanejamento,
+): Promise<Planejamento> {
+  const res = await fetch(`${API_URL}/api/planejamento/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(dados),
+  });
+  const atualizado = await handleResponse<Planejamento>(res);
+  if (!atualizado) {
+    throw new Error("Resposta vazia ao atualizar planejamento");
+  }
+  return atualizado;
+}
+
+export async function deletePlanejamento(id: number): Promise<void> {
+  const res = await fetch(`${API_URL}/api/planejamento/${id}`, {
+    method: "DELETE",
+  });
+  await handleResponse(res);
+}
+
 export type Comprovacao = {
   id: number;
   indicador_id: number;

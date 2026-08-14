@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash } from "lucide-react";
+import { Pencil, Plus, Trash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,10 +17,22 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   createPlanejamento,
+  deletePlanejamento,
   fetchObjetivos,
   fetchPlanejamento,
   fetchUnidades,
+  updatePlanejamento,
   type Objetivo,
   type Planejamento,
   type Unidade,
@@ -52,6 +64,8 @@ export function Planejamento() {
   const [objetivos, setObjetivos] = useState<Objetivo[]>([]);
   const [unidades, setUnidades] = useState<Unidade[]>([]);
   const [open, setOpen] = useState(false);
+  const [editando, setEditando] = useState<Planejamento | null>(null);
+  const [excluindo, setExcluindo] = useState<Planejamento | null>(null);
   const [objetivoId, setObjetivoId] = useState("");
   const [nome, setNome] = useState("");
   const [indicadores, setIndicadores] = useState<IndicadorForm[]>([
@@ -81,9 +95,27 @@ export function Planejamento() {
   );
 
   function abrirNovo() {
+    setEditando(null);
     setObjetivoId("");
     setNome("");
     setIndicadores([indicadorVazio()]);
+    setOpen(true);
+  }
+
+  function abrirEdicao(item: Planejamento) {
+    setEditando(item);
+    setObjetivoId(String(item.objetivo.id));
+    setNome(item.nome);
+    setIndicadores(
+      item.indicadores.map((indicador) => ({
+        nome: indicador.nome,
+        meta: indicador.meta,
+        formula: indicador.formula,
+        orientacao: indicador.orientacao,
+        prazo: indicador.prazo ?? "",
+        unidadeId: indicador.unidade_id ? String(indicador.unidade_id) : "",
+      })),
+    );
     setOpen(true);
   }
 
@@ -125,21 +157,44 @@ export function Planejamento() {
         formula: indicador.formula,
         orientacao: indicador.orientacao,
         prazo: indicador.prazo || null,
-        unidade_id: indicador.unidadeId
-          ? Number(indicador.unidadeId)
-          : null,
+        unidade_id: indicador.unidadeId ? Number(indicador.unidadeId) : null,
       })),
     };
 
     try {
-      const criado = await createPlanejamento(dados);
-      setItens((prev) => [...prev, criado]);
-      toast.success("Planejamento criado com sucesso.");
+      if (editando) {
+        const atualizado = await updatePlanejamento(editando.id, dados);
+        setItens((prev) =>
+          prev.map((item) => (item.id === atualizado.id ? atualizado : item)),
+        );
+        toast.success("Planejamento atualizado com sucesso.");
+      } else {
+        const criado = await createPlanejamento(dados);
+        setItens((prev) => [...prev, criado]);
+        toast.success("Planejamento criado com sucesso.");
+      }
     } catch {
-      toast.error("Erro ao criar o planejamento.");
+      toast.error(
+        editando
+          ? "Erro ao atualizar o planejamento."
+          : "Erro ao criar o planejamento.",
+      );
     }
 
+    setEditando(null);
     setOpen(false);
+  }
+
+  async function confirmarExclusao() {
+    if (!excluindo) return;
+    try {
+      await deletePlanejamento(excluindo.id);
+      setItens((prev) => prev.filter((item) => item.id !== excluindo.id));
+      toast.success("Planejamento excluído com sucesso.");
+    } catch {
+      toast.error("Erro ao excluir o planejamento.");
+    }
+    setExcluindo(null);
   }
 
   return (
@@ -171,6 +226,7 @@ export function Planejamento() {
                 <th className="px-5 py-3 font-medium">Objetivo</th>
                 <th className="px-5 py-3 font-medium">Iniciativa</th>
                 <th className="px-5 py-3 font-medium">Progresso</th>
+                <th className="px-5 py-3 text-right font-medium">Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -204,12 +260,38 @@ export function Planejamento() {
                       </span>
                     </div>
                   </td>
+                  <td className="px-5 py-4 align-top">
+                    <div className="flex items-center justify-end gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          abrirEdicao(item);
+                        }}
+                        className="border border-solid border-black/[.08] rounded-mds bg-white hover:bg-white/90 text-azul-escuro cursor-pointer"
+                      >
+                        <Pencil />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setExcluindo(item);
+                        }}
+                        className="bg-red-600/90 text-white hover:bg-red-600/80 cursor-pointer"
+                      >
+                        <Trash />
+                      </Button>
+                    </div>
+                  </td>
                 </tr>
               ))}
               {itens.length === 0 && (
                 <tr>
                   <td
-                    colSpan={4}
+                    colSpan={5}
                     className="px-5 py-10 text-center text-sm text-muted-foreground"
                   >
                     Nenhum planejamento cadastrado.
@@ -222,9 +304,11 @@ export function Planejamento() {
       </main>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-4xl">
+        <DialogContent className="sm:max-w-4xl p-5">
           <DialogHeader>
-            <DialogTitle>Novo Planejamento</DialogTitle>
+            <DialogTitle>
+              {editando ? "Editar Planejamento" : "Novo Planejamento"}
+            </DialogTitle>
             <DialogDescription>
               Vincule uma iniciativa a um objetivo estratégico e adicione seus
               indicadores.
@@ -238,7 +322,7 @@ export function Planejamento() {
                   id="objetivo"
                   value={objetivoId}
                   onChange={(event) => setObjetivoId(event.target.value)}
-                  className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30"
+                  className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none placeholder:text-muted-foreground md:text-sm dark:bg-input/30"
                   required
                 >
                   <option value="" disabled>
@@ -428,14 +512,9 @@ export function Planejamento() {
                               }
                               className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30"
                             >
-                              <option value="">
-                                Selecione uma unidade...
-                              </option>
+                              <option value="">Selecione uma unidade...</option>
                               {unidades.map((unidade) => (
-                                <option
-                                  key={unidade.id}
-                                  value={unidade.id}
-                                >
+                                <option key={unidade.id} value={unidade.id}>
                                   {unidade.nome}
                                 </option>
                               ))}
@@ -461,12 +540,41 @@ export function Planejamento() {
                 type="submit"
                 className={"cursor-pointer bg-bege hover:bg-bege/90"}
               >
-                Salvar
+                {editando ? "Salvar alterações" : "Salvar"}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={excluindo !== null}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) setExcluindo(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir planejamento</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o planejamento{" "}
+              <strong>{excluindo?.nome}</strong>? Esta ação não pode ser
+              desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setExcluindo(null)}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmarExclusao}
+              className="bg-red-600 text-white hover:bg-red-600/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
