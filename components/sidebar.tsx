@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { Building2, Goal, Target } from "lucide-react";
+import { Building2, ClipboardCheck, Goal, Target } from "lucide-react";
 
 const navItems = [
   { label: "Objetivos", href: "/objetivos", icon: Target },
   { label: "Planejamento", href: "/planejamento", icon: Goal },
   { label: "Unidades", href: "/unidades", icon: Building2 },
+  { label: "Validação", href: "/validacao", icon: ClipboardCheck },
 ];
 
 export function Sidebar() {

@@ -25,6 +25,7 @@ import {
   urlArquivoComprovacao,
   type Comprovacao,
   type Planejamento,
+  type StatusComprovacao,
 } from "@/lib/api";
 
 const MESES = [
@@ -44,6 +45,28 @@ const MESES = [
 
 function labelMes(mes: number): string {
   return MESES[mes - 1] ?? String(mes);
+}
+
+const ROTULO_STATUS: Record<StatusComprovacao, string> = {
+  analise: "Em análise",
+  aprovado: "Aprovado",
+  recusado: "Recusado",
+};
+
+const CLASSE_STATUS: Record<StatusComprovacao, string> = {
+  analise: "bg-muted text-muted-foreground",
+  aprovado: "bg-green-600/15 text-green-700",
+  recusado: "bg-red-600/15 text-red-700",
+};
+
+function BadgeStatus({ status }: { status: StatusComprovacao }) {
+  return (
+    <span
+      className={`inline-flex w-fit items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${CLASSE_STATUS[status]}`}
+    >
+      {ROTULO_STATUS[status]}
+    </span>
+  );
 }
 
 function formatarData(iso: string | null): string {
@@ -265,30 +288,33 @@ export function PaginaComprovacoes({
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      render={
-                        <a
-                          href={urlArquivoComprovacao(atual.id)}
-                          target="_blank"
-                          rel="noreferrer"
-                        />
-                      }
-                      aria-label="Visualizar comprovação do mês atual"
-                    >
-                      <ExternalLink />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() => handleDelete(atual)}
-                      className="cursor-pointer text-red-600 hover:text-red-600"
-                      aria-label="Excluir comprovação do mês atual"
-                    >
-                      <Trash2 />
-                    </Button>
+                  <div className="flex flex-col items-end gap-1.5">
+                    <BadgeStatus status={atual.status} />
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        render={
+                          <a
+                            href={urlArquivoComprovacao(atual.id)}
+                            target="_blank"
+                            rel="noreferrer"
+                          />
+                        }
+                        aria-label="Visualizar comprovação do mês atual"
+                      >
+                        <ExternalLink />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => handleDelete(atual)}
+                        className="cursor-pointer text-red-600 hover:text-red-600"
+                        aria-label="Excluir comprovação do mês atual"
+                      >
+                        <Trash2 />
+                      </Button>
+                    </div>
                   </div>
                 </div>
                 <Button
@@ -419,6 +445,7 @@ export function PaginaComprovacoes({
                         {item.arquivo_nome}
                       </span>
                     </div>
+                    <BadgeStatus status={item.status} />
                     <div className="flex items-center gap-1">
                       <Button
                         variant="ghost"

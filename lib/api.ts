@@ -170,12 +170,15 @@ export async function deletePlanejamento(id: number): Promise<void> {
   await handleResponse(res);
 }
 
+export type StatusComprovacao = "analise" | "aprovado" | "recusado";
+
 export type Comprovacao = {
   id: number;
   indicador_id: number;
   ano: number;
   mes: number;
   arquivo_nome: string;
+  status: StatusComprovacao;
   created_at: string;
   updated_at: string;
 };
