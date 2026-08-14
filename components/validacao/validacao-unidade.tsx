@@ -5,7 +5,6 @@ import Link from "next/link";
 import {
   ArrowLeft,
   Building2,
-  CalendarDays,
   Check,
   ExternalLink,
   FileText,
@@ -13,13 +12,26 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import {
+  decidirComprovacao,
   fetchComprovacoes,
   fetchPlanejamento,
   fetchUnidades,
   urlArquivoComprovacao,
   type Planejamento,
+  type StatusComprovacao,
   type Unidade,
 } from "@/lib/api";
 
@@ -46,6 +58,19 @@ type ComprovacaoValidacao = {
   objetivo_nome: string;
   iniciativa_nome: string;
   meta: string;
+  status: StatusComprovacao;
+};
+
+const ROTULO_STATUS: Record<StatusComprovacao, string> = {
+  analise: "Em análise",
+  aprovado: "Aprovado",
+  recusado: "Recusado",
+};
+
+const CLASSE_STATUS: Record<StatusComprovacao, string> = {
+  analise: "bg-muted text-muted-foreground",
+  aprovado: "bg-green-600/15 text-green-700",
+  recusado: "bg-red-600/15 text-red-700",
 };
 
 export function ValidacaoUnidade({
@@ -62,6 +87,12 @@ export function ValidacaoUnidade({
   const [itens, setItens] = useState<ComprovacaoValidacao[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState(false);
+  const [reprovando, setReprovando] = useState<ComprovacaoValidacao | null>(
+    null,
+  );
+  const [justificativa, setJustificativa] = useState("");
+  const [prazoReenvio, setPrazoReenvio] = useState("");
+  const [salvando, setSalvando] = useState(false);
 
   useEffect(() => {
     fetchUnidades()
@@ -99,6 +130,7 @@ export function ValidacaoUnidade({
                     objetivo_nome: planejamento.objetivo.nome,
                     iniciativa_nome: planejamento.nome,
                     meta: indicador.meta,
+                    status: c.status,
                   })),
               ),
             );
@@ -132,12 +164,53 @@ export function ValidacaoUnidade({
     [itens],
   );
 
-  function acaoPlaceholder(acao: "aprovar" | "reprovar") {
-    toast.info(
-      acao === "aprovar"
-        ? "Aprovação será habilitada em breve."
-        : "Reprovação será habilitada em breve.",
-    );
+  function abrirReprovacao(item: ComprovacaoValidacao) {
+    setReprovando(item);
+    setJustificativa("");
+    setPrazoReenvio("");
+  }
+
+  async function confirmarReprovacao() {
+    if (!reprovando) return;
+    if (!justificativa.trim()) {
+      toast.error("Informe a justificativa da reprovação.");
+      return;
+    }
+    setSalvando(true);
+    try {
+      const atualizada = await decidirComprovacao(reprovando.id, {
+        status: "recusado",
+        justificativa: justificativa.trim(),
+        prazo_reenvio: prazoReenvio || null,
+      });
+      setItens((prev) =>
+        prev.map((item) =>
+          item.id === atualizada.id ? { ...item, status: atualizada.status } : item,
+        ),
+      );
+      toast.success("Comprovação reprovada.");
+    } catch {
+      toast.error("Erro ao reprovar a comprovação.");
+    } finally {
+      setSalvando(false);
+      setReprovando(null);
+    }
+  }
+
+  async function aprovar(item: ComprovacaoValidacao) {
+    try {
+      const atualizada = await decidirComprovacao(item.id, {
+        status: "aprovado",
+      });
+      setItens((prev) =>
+        prev.map((i) =>
+          i.id === atualizada.id ? { ...i, status: atualizada.status } : i,
+        ),
+      );
+      toast.success("Comprovação aprovada.");
+    } catch {
+      toast.error("Erro ao aprovar a comprovação.");
+    }
   }
 
   return (
@@ -208,6 +281,11 @@ export function ValidacaoUnidade({
                   <span className="inline-flex w-fit rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
                     {item.objetivo_codigo}
                   </span>
+                  <span
+                    className={`inline-flex w-fit shrink-0 items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${CLASSE_STATUS[item.status]}`}
+                  >
+                    {ROTULO_STATUS[item.status]}
+                  </span>
                 </div>
 
                 <h2 className="mt-3 text-sm font-semibold leading-snug">
@@ -249,7 +327,8 @@ export function ValidacaoUnidade({
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => acaoPlaceholder("aprovar")}
+                    onClick={() => aprovar(item)}
+                    disabled={item.status !== "analise"}
                     className="ml-auto cursor-pointer text-green-600 hover:bg-green-600/10 hover:text-green-600"
                   >
                     <Check />
@@ -258,7 +337,8 @@ export function ValidacaoUnidade({
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => acaoPlaceholder("reprovar")}
+                    onClick={() => abrirReprovacao(item)}
+                    disabled={item.status !== "analise"}
                     className="cursor-pointer text-red-600 hover:bg-red-600/10 hover:text-red-600"
                   >
                     <X />
@@ -270,6 +350,67 @@ export function ValidacaoUnidade({
           </div>
         )}
       </main>
+
+      <Dialog
+        open={reprovando !== null}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) setReprovando(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reprovar comprovação</DialogTitle>
+            <DialogDescription>
+              Informe a justificativa da reprovação para{" "}
+              <strong>{reprovando?.arquivo_nome}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="justificativa">Justificativa</Label>
+              <Textarea
+                id="justificativa"
+                value={justificativa}
+                onChange={(event) => setJustificativa(event.target.value)}
+                placeholder="Explique o motivo da reprovação"
+                className="focus-visible:ring-0 focus-visible:border-input"
+                required
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="prazo">Prazo para reenvio (opcional)</Label>
+              <Input
+                id="prazo"
+                type="date"
+                value={prazoReenvio}
+                onChange={(event) => setPrazoReenvio(event.target.value)}
+                className="focus-visible:ring-0 focus-visible:border-input"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="border-t-0 bg-transparent">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setReprovando(null)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={confirmarReprovacao}
+              disabled={salvando}
+              className="cursor-pointer bg-red-600 text-white hover:bg-red-600/90"
+            >
+              {salvando ? <LoaderCircle className="animate-spin" /> : <X />}
+              Reprovar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

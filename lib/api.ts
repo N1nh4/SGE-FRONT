@@ -179,6 +179,8 @@ export type Comprovacao = {
   mes: number;
   arquivo_nome: string;
   status: StatusComprovacao;
+  justificativa: string | null;
+  prazo_reenvio: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -221,6 +223,28 @@ export async function deleteComprovacao(id: number): Promise<void> {
     method: "DELETE",
   });
   await handleResponse(res);
+}
+
+export type DecisaoComprovacao = {
+  status: StatusComprovacao;
+  justificativa?: string | null;
+  prazo_reenvio?: string | null;
+};
+
+export async function decidirComprovacao(
+  id: number,
+  dados: DecisaoComprovacao,
+): Promise<Comprovacao> {
+  const res = await fetch(`${API_URL}/api/comprovacoes/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(dados),
+  });
+  const atualizada = await handleResponse<Comprovacao>(res);
+  if (!atualizada) {
+    throw new Error("Resposta vazia ao decidir comprovação");
+  }
+  return atualizada;
 }
 
 export function urlArquivoComprovacao(id: number): string {

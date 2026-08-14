@@ -135,7 +135,7 @@ export function Unidades() {
                 key={unidade.id}
                 className="flex flex-col rounded-xl border bg-card p-5 shadow-sm transition-shadow hover:shadow-md"
               >
-                <h2 className="mt-3 text-lg font-semibold leading-snug">
+                <h2 className="mt-3 text-base font-semibold leading-snug">
                   {unidade.nome}
                 </h2>
                 {/* <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">

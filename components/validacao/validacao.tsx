@@ -113,7 +113,7 @@ export function Validacao() {
                   </div>
                   <p className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
                     <ClipboardCheck className="size-3.5" />
-                    Clique para ver as comprovações de {MESES[mes - 1]} de {ano}
+                    Clique para ver as comprovações
                   </p>
                 </Link>
               ))}
