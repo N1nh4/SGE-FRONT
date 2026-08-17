@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { CalendarDays, LoaderCircle, Pencil, Plus, Trash } from "lucide-react";
+import Link from "next/link";
+import {
+  CalendarDays,
+  Eye,
+  LoaderCircle,
+  Pencil,
+  Plus,
+  Trash,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,6 +25,7 @@ import { toast } from "sonner";
 import {
   createUnidade,
   deleteUnidade,
+  fetchColaboradores,
   fetchUnidades,
   updateUnidade,
   type Unidade,
@@ -39,6 +48,7 @@ function formatarData(iso: string): string {
 
 export function Unidades() {
   const [unidades, setUnidades] = useState<Unidade[]>([]);
+  const [contagens, setContagens] = useState<Record<number, number>>({});
   const [open, setOpen] = useState(false);
   const [editando, setEditando] = useState<Unidade | null>(null);
   const [excluindo, setExcluindo] = useState<Unidade | null>(null);
@@ -47,7 +57,14 @@ export function Unidades() {
 
   useEffect(() => {
     fetchUnidades()
-      .then(setUnidades)
+      .then((lista) => {
+        setUnidades(lista);
+        for (const u of lista) {
+          fetchColaboradores(u.id)
+            .then((cols) => setContagens((prev) => ({ ...prev, [u.id]: cols.length })))
+            .catch(() => {});
+        }
+      })
       .catch(() => {
         // Backend offline: mantém a lista local.
       });
@@ -138,11 +155,25 @@ export function Unidades() {
                 <h2 className="mt-3 text-base font-semibold leading-snug">
                   {unidade.nome}
                 </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {contagens[unidade.id] != null
+                    ? `${contagens[unidade.id]} colaborador(es)`
+                    : ""}
+                </p>
                 {/* <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
                   <CalendarDays className="h-4 w-4" />
                   Criado em {formatarData(unidade.created_at)}
                 </div> */}
                 <div className="mt-auto flex items-center justify-end gap-2 pt-4">
+                  <Button
+                    type="button"
+                    size="sm"
+                    render={<Link href={`/unidades/${unidade.id}`} />}
+                    className="border border-solid border-black/[.08] rounded-mds bg-white hover:bg-white/90 text-azul-escuro cursor-pointer"
+                    aria-label="Visualizar unidade"
+                  >
+                    <Eye />
+                  </Button>
                   <Button
                     type="button"
                     size="sm"

@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Plus, Trash } from "lucide-react";
+import { Check, ChevronDown, Pencil, Plus, Trash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -41,20 +41,24 @@ import {
 type IndicadorForm = {
   nome: string;
   meta: string;
-  formula: string;
+  rotuloX: string;
+  rotuloY: string;
   orientacao: string;
   prazo: string;
-  unidadeId: string;
+  unidadeIds: string[];
+  etapas: string[];
 };
 
 function indicadorVazio(): IndicadorForm {
   return {
     nome: "",
     meta: "",
-    formula: "",
+    rotuloX: "",
+    rotuloY: "",
     orientacao: "",
     prazo: "",
-    unidadeId: "",
+    unidadeIds: [],
+    etapas: [],
   };
 }
 
@@ -71,6 +75,23 @@ export function Planejamento() {
   const [indicadores, setIndicadores] = useState<IndicadorForm[]>([
     indicadorVazio(),
   ]);
+  const [dropdownAberto, setDropdownAberto] = useState<number | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickFora(event: MouseEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setDropdownAberto(null);
+      }
+    }
+    if (dropdownAberto !== null) {
+      document.addEventListener("mousedown", handleClickFora);
+      return () => document.removeEventListener("mousedown", handleClickFora);
+    }
+  }, [dropdownAberto]);
 
   useEffect(() => {
     fetchPlanejamento()
@@ -110,10 +131,12 @@ export function Planejamento() {
       item.indicadores.map((indicador) => ({
         nome: indicador.nome,
         meta: indicador.meta,
-        formula: indicador.formula,
+        rotuloX: indicador.rotulo_x,
+        rotuloY: indicador.rotulo_y,
         orientacao: indicador.orientacao,
         prazo: indicador.prazo ?? "",
-        unidadeId: indicador.unidade_id ? String(indicador.unidade_id) : "",
+        unidadeIds: indicador.unidades.map((u) => String(u.id)),
+        etapas: indicador.etapas.map((e) => e.nome),
       })),
     );
     setOpen(true);
@@ -145,6 +168,55 @@ export function Planejamento() {
     setIndicadores((prev) => prev.filter((_, i) => i !== index));
   }
 
+  function toggleUnidade(indicadorIndex: number, unidadeId: string) {
+    setIndicadores((prev) =>
+      prev.map((indicador, i) => {
+        if (i !== indicadorIndex) return indicador;
+        const selecionadas = indicador.unidadeIds.includes(unidadeId)
+          ? indicador.unidadeIds.filter((id) => id !== unidadeId)
+          : [...indicador.unidadeIds, unidadeId];
+        return { ...indicador, unidadeIds: selecionadas };
+      }),
+    );
+  }
+
+  function adicionarEtapa(indicadorIndex: number) {
+    setIndicadores((prev) =>
+      prev.map((indicador, i) =>
+        i === indicadorIndex
+          ? { ...indicador, etapas: [...indicador.etapas, ""] }
+          : indicador,
+      ),
+    );
+  }
+
+  function atualizarEtapa(
+    indicadorIndex: number,
+    etapaIndex: number,
+    valor: string,
+  ) {
+    setIndicadores((prev) =>
+      prev.map((indicador, i) => {
+        if (i !== indicadorIndex) return indicador;
+        const novasEtapas = [...indicador.etapas];
+        novasEtapas[etapaIndex] = valor;
+        return { ...indicador, etapas: novasEtapas };
+      }),
+    );
+  }
+
+  function removerEtapa(indicadorIndex: number, etapaIndex: number) {
+    setIndicadores((prev) =>
+      prev.map((indicador, i) => {
+        if (i !== indicadorIndex) return indicador;
+        return {
+          ...indicador,
+          etapas: indicador.etapas.filter((_, j) => j !== etapaIndex),
+        };
+      }),
+    );
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -154,10 +226,12 @@ export function Planejamento() {
       indicadores: indicadores.map((indicador) => ({
         nome: indicador.nome,
         meta: indicador.meta,
-        formula: indicador.formula,
+        rotulo_x: indicador.rotuloX,
+        rotulo_y: indicador.rotuloY,
         orientacao: indicador.orientacao,
         prazo: indicador.prazo || null,
-        unidade_id: indicador.unidadeId ? Number(indicador.unidadeId) : null,
+        unidade_ids: indicador.unidadeIds.map(Number),
+        etapas: indicador.etapas,
       })),
     };
 
@@ -182,6 +256,7 @@ export function Planejamento() {
     }
 
     setEditando(null);
+    setDropdownAberto(null);
     setOpen(false);
   }
 
@@ -438,24 +513,119 @@ export function Planejamento() {
                           />
                         </div>
 
+                        <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+                          <div className="flex items-center gap-1 d">
+                            <Label htmlFor={`ind-rotulo-x-${index}`}>
+                              Forma de Calculo
+                            </Label>
+                          </div>
+
+                          <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2">
+                            <div className="grid gap-2">
+                              <Label htmlFor={`ind-rotulo-x-${index}`}>
+                                Numerador (X)
+                              </Label>
+                              <Input
+                                id={`ind-rotulo-x-${index}`}
+                                value={indicador.rotuloX}
+                                onChange={(event) =>
+                                  atualizarIndicador(
+                                    index,
+                                    "rotuloX",
+                                    event.target.value,
+                                  )
+                                }
+                                placeholder="Ex.: Etapas concluídas"
+                                className="focus-visible:ring-0 focus-visible:border-input"
+                                required
+                              />
+                            </div>
+                            <span className="pb-1 text-lg font-semibold text-muted-foreground">
+                              /
+                            </span>
+                            <div className="grid gap-2">
+                              <Label htmlFor={`ind-rotulo-y-${index}`}>
+                                Denominador (Y)
+                              </Label>
+                              <Input
+                                id={`ind-rotulo-y-${index}`}
+                                value={indicador.rotuloY}
+                                onChange={(event) =>
+                                  atualizarIndicador(
+                                    index,
+                                    "rotuloY",
+                                    event.target.value,
+                                  )
+                                }
+                                placeholder="Ex.: Etapas previstas"
+                                className="focus-visible:ring-0 focus-visible:border-input"
+                                required
+                              />
+                            </div>
+                          </div>
+
+                          <div className="text-sm text-muted-foreground">
+                            <span className="font-medium">Resultado:</span> (
+                            {indicador.rotuloX || "X"} /{" "}
+                            {indicador.rotuloY || "Y"}) x 100
+                          </div>
+                        </div>
+
                         <div className="grid gap-2">
-                          <Label htmlFor={`ind-formula-${index}`}>
-                            Fórmula de cálculo
-                          </Label>
-                          <Textarea
-                            id={`ind-formula-${index}`}
-                            value={indicador.formula}
-                            onChange={(event) =>
-                              atualizarIndicador(
-                                index,
-                                "formula",
-                                event.target.value,
-                              )
-                            }
-                            placeholder="Ex.: (promotores - detratores) / total de respondentes * 100"
-                            className="focus-visible:ring-0 focus-visible:border-input"
-                            required
-                          />
+                          <div className="flex items-center justify-between">
+                            <Label>Etapas (denominador Y)</Label>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => adicionarEtapa(index)}
+                              className="cursor-pointer"
+                            >
+                              <Plus />
+                              Adicionar etapa
+                            </Button>
+                          </div>
+                          {indicador.etapas.length === 0 && (
+                            <p className="text-xs text-muted-foreground">
+                              Nenhuma etapa cadastrada. Adicione as etapas para
+                              compor o total (Y) da fórmula.
+                            </p>
+                          )}
+                          <div className="space-y-2">
+                            {indicador.etapas.map((etapa, etapaIndex) => (
+                              <div
+                                key={etapaIndex}
+                                className="flex items-center gap-2"
+                              >
+                                <span className="text-xs text-muted-foreground w-5 text-right">
+                                  {etapaIndex + 1}.
+                                </span>
+                                <Input
+                                  value={etapa}
+                                  onChange={(event) =>
+                                    atualizarEtapa(
+                                      index,
+                                      etapaIndex,
+                                      event.target.value,
+                                    )
+                                  }
+                                  placeholder={`Etapa ${etapaIndex + 1}`}
+                                  className="focus-visible:ring-0 focus-visible:border-input"
+                                />
+                                <Button
+                                  type="button"
+                                  size="icon-xs"
+                                  variant="outline"
+                                  onClick={() =>
+                                    removerEtapa(index, etapaIndex)
+                                  }
+                                  className="cursor-pointer text-red-600 hover:text-red-600 shrink-0"
+                                >
+                                  <Trash />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
                         </div>
 
                         <div className="grid gap-2">
@@ -497,28 +667,121 @@ export function Planejamento() {
                           </div>
 
                           <div className="grid gap-2">
-                            <Label htmlFor={`ind-responsavel-${index}`}>
-                              Responsável
-                            </Label>
-                            <select
-                              id={`ind-responsavel-${index}`}
-                              value={indicador.unidadeId}
-                              onChange={(event) =>
-                                atualizarIndicador(
-                                  index,
-                                  "unidadeId",
-                                  event.target.value,
-                                )
-                              }
-                              className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30"
-                            >
-                              <option value="">Selecione uma unidade...</option>
-                              {unidades.map((unidade) => (
-                                <option key={unidade.id} value={unidade.id}>
-                                  {unidade.nome}
-                                </option>
-                              ))}
-                            </select>
+                            <Label>Responsável</Label>
+                            <div ref={dropdownRef} className="relative">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setDropdownAberto(
+                                    dropdownAberto === index ? null : index,
+                                  )
+                                }
+                                className="flex h-8 w-full min-w-0 items-center justify-between gap-2 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30"
+                              >
+                                <span
+                                  className={`truncate ${indicador.unidadeIds.length === 0 ? "text-muted-foreground" : ""}`}
+                                >
+                                  {indicador.unidadeIds.length === 0
+                                    ? "Selecione unidades..."
+                                    : unidades
+                                        .filter((u) =>
+                                          indicador.unidadeIds.includes(
+                                            String(u.id),
+                                          ),
+                                        )
+                                        .map((u) => u.nome)
+                                        .join(", ")}
+                                </span>
+                                <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+                              </button>
+                              {dropdownAberto === index && (
+                                <div className="absolute z-50 mt-1 max-h-48 w-full overflow-auto rounded-lg border bg-popover shadow-md">
+                                  {unidades.length === 0 && (
+                                    <div className="px-2.5 py-1.5 text-sm text-muted-foreground">
+                                      Nenhuma unidade cadastrada.
+                                    </div>
+                                  )}
+                                  {unidades.length > 0 && (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const todosIds = unidades.map((u) =>
+                                            String(u.id),
+                                          );
+                                          const todasSelecionadas =
+                                            indicador.unidadeIds.length ===
+                                            todosIds.length;
+                                          setIndicadores((prev) =>
+                                            prev.map((ind, i) =>
+                                              i === index
+                                                ? {
+                                                    ...ind,
+                                                    unidadeIds:
+                                                      todasSelecionadas
+                                                        ? []
+                                                        : todosIds,
+                                                  }
+                                                : ind,
+                                            ),
+                                          );
+                                        }}
+                                        className="flex w-full items-center gap-2 border-b px-2.5 py-1.5 text-left text-sm font-medium hover:bg-accent cursor-pointer"
+                                      >
+                                        <span
+                                          className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                                            indicador.unidadeIds.length ===
+                                              unidades.length &&
+                                            unidades.length > 0
+                                              ? "border-bege bg-bege text-white"
+                                              : "border-input"
+                                          }`}
+                                        >
+                                          {indicador.unidadeIds.length ===
+                                            unidades.length &&
+                                            unidades.length > 0 && (
+                                              <Check className="h-3 w-3" />
+                                            )}
+                                        </span>
+                                        Selecionar todos
+                                      </button>
+                                      {unidades.map((unidade) => {
+                                        const marcada =
+                                          indicador.unidadeIds.includes(
+                                            String(unidade.id),
+                                          );
+                                        return (
+                                          <button
+                                            key={unidade.id}
+                                            type="button"
+                                            onClick={() =>
+                                              toggleUnidade(
+                                                index,
+                                                String(unidade.id),
+                                              )
+                                            }
+                                            className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-sm hover:bg-accent cursor-pointer"
+                                          >
+                                            <span
+                                              className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                                                marcada
+                                                  ? "border-bege bg-bege text-white"
+                                                  : "border-input"
+                                              }`}
+                                            >
+                                              {marcada && (
+                                                <Check className="h-3 w-3" />
+                                              )}
+                                            </span>
+                                            {unidade.nome}
+                                          </button>
+                                        );
+                                      })}
+                                    </>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -532,7 +795,10 @@ export function Planejamento() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setOpen(false)}
+                onClick={() => {
+                  setDropdownAberto(null);
+                  setOpen(false);
+                }}
               >
                 Cancelar
               </Button>

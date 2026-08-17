@@ -4,14 +4,12 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
-  CalendarDays,
   ExternalLink,
   FileText,
   LoaderCircle,
   Paperclip,
   Trash2,
   Upload,
-  User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,25 +25,6 @@ import {
   type Planejamento,
   type StatusComprovacao,
 } from "@/lib/api";
-
-const MESES = [
-  "Janeiro",
-  "Fevereiro",
-  "Março",
-  "Abril",
-  "Maio",
-  "Junho",
-  "Julho",
-  "Agosto",
-  "Setembro",
-  "Outubro",
-  "Novembro",
-  "Dezembro",
-];
-
-function labelMes(mes: number): string {
-  return MESES[mes - 1] ?? String(mes);
-}
 
 const ROTULO_STATUS: Record<StatusComprovacao, string> = {
   analise: "Em análise",
@@ -88,11 +67,8 @@ export function PaginaComprovacoes({
   const [carregandoItens, setCarregandoItens] = useState(true);
   const [erroItens, setErroItens] = useState(false);
   const [arquivo, setArquivo] = useState<File | null>(null);
+  const [etapaSelecionada, setEtapaSelecionada] = useState<number | null>(null);
   const [enviando, setEnviando] = useState(false);
-  const [substituindo, setSubstituindo] = useState(false);
-  const [anoSelecionado, setAnoSelecionado] = useState(
-    () => new Date().getFullYear(),
-  );
 
   const indicador = useMemo(
     () =>
@@ -122,51 +98,25 @@ export function PaginaComprovacoes({
       .finally(() => setCarregandoItens(false));
   }, [indicadorId]);
 
-  const hoje = new Date();
-  const anoAtual = hoje.getFullYear();
-  const mesAtual = hoje.getMonth() + 1;
-
-  const historico = useMemo(
-    () =>
-      (itens ?? [])
-        .slice()
-        .sort((a, b) => b.ano - a.ano || b.mes - a.mes),
-    [itens],
-  );
-
-  const atual = useMemo(
-    () =>
-      historico.find(
-        (item) => item.ano === anoAtual && item.mes === mesAtual,
-      ) ?? null,
-    [historico, anoAtual, mesAtual],
-  );
-
-  const anosDisponiveis = useMemo(
-    () =>
-      Array.from(new Set(historico.map((item) => item.ano))).sort(
-        (a, b) => b - a,
-      ),
-    [historico],
-  );
-
-  const anoExibido = anosDisponiveis.includes(anoSelecionado)
-    ? anoSelecionado
-    : (anosDisponiveis[0] ?? anoAtual);
-
-  const visiveis = useMemo(
-    () => historico.filter((item) => item.ano === anoExibido),
-    [historico, anoExibido],
-  );
+  const comprovacoesPorEtapa = useMemo(() => {
+    const map: Record<number, Comprovacao> = {};
+    for (const c of itens ?? []) {
+      if (c.etapa_id != null && !map[c.etapa_id]) {
+        map[c.etapa_id] = c;
+      }
+    }
+    return map;
+  }, [itens]);
 
   async function handleUpload(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!arquivo) return;
+    if (!arquivo || etapaSelecionada == null) return;
     setEnviando(true);
     try {
-      await uploadComprovacao(indicadorId, anoAtual, mesAtual, arquivo);
+      await uploadComprovacao(indicadorId, etapaSelecionada, arquivo);
       toast.success("Comprovação enviada com sucesso.");
       setArquivo(null);
+      setEtapaSelecionada(null);
       carregarComprovacoes();
     } catch {
       toast.error("Erro ao enviar a comprovação.");
@@ -235,9 +185,6 @@ export function PaginaComprovacoes({
             <p className="text-sm text-muted-foreground">{indicador.nome}</p>
           </div>
         </div>
-        <span className="inline-flex w-fit rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-          {labelMes(mesAtual)} de {anoAtual}
-        </span>
       </header>
 
       <main className="flex flex-1 flex-col gap-6 bg-cinza-claro p-8">
@@ -249,232 +196,154 @@ export function PaginaComprovacoes({
                 Meta: {indicador.meta}
               </span>
             </div>
-            <div className="flex flex-wrap gap-4 text-sm">
-              <span className="flex items-center gap-2 text-muted-foreground">
-                <CalendarDays className="h-4 w-4" />
-                Prazo: {formatarData(indicador.prazo)}
-              </span>
-              <span className="flex items-center gap-2 text-muted-foreground">
-                <User className="h-4 w-4" />
-                Responsável: {indicador.unidade?.nome ?? "—"}
+            <div className="text-sm text-muted-foreground">
+              ({indicador.rotulo_x} / {indicador.rotulo_y}) x 100
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-muted-foreground">Progresso:</span>
+              <div className="h-2 w-32 overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-bege"
+                  style={{ width: `${indicador.progresso}%` }}
+                />
+              </div>
+              <span className="text-xs text-muted-foreground">
+                {indicador.progresso}%
               </span>
             </div>
           </div>
         </section>
 
         <section className="rounded-xl border bg-card">
-          <div className="flex items-center justify-between gap-2 border-b px-5 py-4">
-            <div className="flex items-center gap-2">
-              <Upload className="h-4 w-4 text-bege" />
-              <h2 className="font-medium">Comprovação do mês atual</h2>
-            </div>
-            <span className="inline-flex w-fit rounded-full bg-bege px-2.5 py-0.5 text-xs font-semibold text-white">
-              {labelMes(mesAtual)} de {anoAtual}
-            </span>
-          </div>
-          <form onSubmit={handleUpload} className="flex flex-col gap-4 p-5">
-            {atual && !substituindo ? (
-              <>
-                <div className="flex items-center justify-between gap-3 rounded-lg border border-bege/30 bg-bege/5 p-4">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <FileText className="h-4 w-4 shrink-0 text-bege" />
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">
-                        {atual.arquivo_nome}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Enviada em{" "}
-                        {formatarData(atual.created_at.split("T")[0])}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end gap-1.5">
-                    <BadgeStatus status={atual.status} />
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        render={
-                          <a
-                            href={urlArquivoComprovacao(atual.id)}
-                            target="_blank"
-                            rel="noreferrer"
-                          />
-                        }
-                        aria-label="Visualizar comprovação do mês atual"
-                      >
-                        <ExternalLink />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => handleDelete(atual)}
-                        className="cursor-pointer text-red-600 hover:text-red-600"
-                        aria-label="Excluir comprovação do mês atual"
-                      >
-                        <Trash2 />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setSubstituindo(true)}
-                  className="cursor-pointer"
-                >
-                  <Upload />
-                  Substituir arquivo
-                </Button>
-              </>
-            ) : (
-              <>
-                <div className="grid gap-2">
-                  <Label htmlFor="arquivo">Arquivo PDF</Label>
-                  <Input
-                    id="arquivo"
-                    type="file"
-                    accept="application/pdf"
-                    onChange={(event) =>
-                      setArquivo(event.target.files?.[0] ?? null)
-                    }
-                    className="cursor-pointer"
-                  />
-                </div>
-
-                {atual && (
-                  <p className="text-xs text-muted-foreground">
-                    Já existe comprovação de {labelMes(mesAtual)} de{" "}
-                    {anoAtual}. Enviar novamente substitui o arquivo atual.
-                  </p>
-                )}
-
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="submit"
-                    disabled={!arquivo || enviando}
-                    className="cursor-pointer bg-bege hover:bg-bege/90"
-                  >
-                    {enviando ? (
-                      <LoaderCircle className="animate-spin" />
-                    ) : (
-                      <Upload />
-                    )}
-                    {enviando ? "Enviando..." : "Enviar comprovação"}
-                  </Button>
-                  {atual && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={() => {
-                        setSubstituindo(false);
-                        setArquivo(null);
-                      }}
-                      className="cursor-pointer"
-                    >
-                      Cancelar
-                    </Button>
-                  )}
-                </div>
-              </>
-            )}
-          </form>
-        </section>
-
-        <section className="rounded-xl border bg-card">
-          <div className="flex items-center justify-between gap-2 border-b px-5 py-4">
-            <div className="flex items-center gap-2">
-              <Paperclip className="h-4 w-4 text-bege" />
-              <h2 className="font-medium">Comprovações enviadas</h2>
-            </div>
-            {anosDisponiveis.length > 0 && (
-              <select
-                aria-label="Filtrar por ano"
-                value={anoExibido}
-                onChange={(event) =>
-                  setAnoSelecionado(Number(event.target.value))
-                }
-                className="h-8 w-auto min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
-              >
-                {anosDisponiveis.map((ano) => (
-                  <option key={ano} value={ano}>
-                    {ano}
-                  </option>
-                ))}
-              </select>
-            )}
+          <div className="flex items-center gap-2 border-b px-5 py-4">
+            <Paperclip className="h-4 w-4 text-bege" />
+            <h2 className="font-medium">Etapas e Comprovações</h2>
           </div>
           <div className="p-5">
-            {carregandoItens && (
-              <p className="py-6 text-center text-sm text-muted-foreground">
-                Carregando...
+            {indicador.etapas.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                Nenhuma etapa cadastrada para este indicador.
               </p>
             )}
 
-            {!carregandoItens && erroItens && (
-              <p className="py-6 text-center text-sm text-muted-foreground">
-                Não foi possível carregar as comprovações.
-              </p>
-            )}
-
-            {!carregandoItens && !erroItens && historico.length === 0 && (
-              <p className="py-6 text-center text-sm text-muted-foreground">
-                Nenhuma comprovação enviada ainda. Ao enviar o primeiro mês,
-                ele aparece aqui.
-              </p>
-            )}
-
-            {!carregandoItens && !erroItens && historico.length > 0 && (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {visiveis.map((item) => (
+            <div className="space-y-4">
+              {indicador.etapas.map((etapa, index) => {
+                const comprovacao = comprovacoesPorEtapa[etapa.id];
+                return (
                   <div
-                    key={item.id}
-                    className="flex flex-col justify-between gap-3 rounded-lg border border-bege/30 bg-bege/5 p-4"
+                    key={etapa.id}
+                    className="rounded-lg border p-4"
                   >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-medium">
-                        {labelMes(item.mes)}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {item.ano}
-                      </span>
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-bege text-xs font-semibold text-white">
+                          {index + 1}
+                        </span>
+                        <span className="font-medium text-sm">{etapa.nome}</span>
+                      </div>
+                      {comprovacao && (
+                        <BadgeStatus status={comprovacao.status} />
+                      )}
                     </div>
-                    <div className="flex min-w-0 items-center gap-2">
-                      <FileText className="h-4 w-4 shrink-0 text-bege" />
-                      <span className="truncate text-xs text-muted-foreground">
-                        {item.arquivo_nome}
-                      </span>
-                    </div>
-                    <BadgeStatus status={item.status} />
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        render={
-                          <a
-                            href={urlArquivoComprovacao(item.id)}
-                            target="_blank"
-                            rel="noreferrer"
+
+                    {comprovacao ? (
+                      <div className="flex items-center justify-between gap-3 rounded-lg border border-bege/30 bg-bege/5 p-3">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <FileText className="h-4 w-4 shrink-0 text-bege" />
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium">
+                              {comprovacao.arquivo_nome}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Enviada em{" "}
+                              {formatarData(comprovacao.created_at.split("T")[0])}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            render={
+                              <a
+                                href={urlArquivoComprovacao(comprovacao.id)}
+                                target="_blank"
+                                rel="noreferrer"
+                              />
+                            }
+                            aria-label="Visualizar comprovação"
+                          >
+                            <ExternalLink />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => handleDelete(comprovacao)}
+                            className="cursor-pointer text-red-600 hover:text-red-600"
+                            aria-label="Excluir comprovação"
+                          >
+                            <Trash2 />
+                          </Button>
+                        </div>
+                      </div>
+                    ) : etapaSelecionada === etapa.id ? (
+                      <form onSubmit={handleUpload} className="flex flex-col gap-3">
+                        <div className="grid gap-2">
+                          <Label htmlFor={`arquivo-${etapa.id}`}>
+                            Arquivo PDF
+                          </Label>
+                          <Input
+                            id={`arquivo-${etapa.id}`}
+                            type="file"
+                            accept="application/pdf"
+                            onChange={(event) =>
+                              setArquivo(event.target.files?.[0] ?? null)
+                            }
+                            className="cursor-pointer"
                           />
-                        }
-                        aria-label={`Visualizar comprovação de ${labelMes(item.mes)} de ${item.ano}`}
-                      >
-                        <ExternalLink />
-                      </Button>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="submit"
+                            disabled={!arquivo || enviando}
+                            className="cursor-pointer bg-bege hover:bg-bege/90"
+                          >
+                            {enviando ? (
+                              <LoaderCircle className="animate-spin" />
+                            ) : (
+                              <Upload />
+                            )}
+                            {enviando ? "Enviando..." : "Enviar"}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={() => {
+                              setEtapaSelecionada(null);
+                              setArquivo(null);
+                            }}
+                            className="cursor-pointer"
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+                      </form>
+                    ) : (
                       <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => handleDelete(item)}
-                        className="cursor-pointer text-red-600 hover:text-red-600"
-                        aria-label={`Excluir comprovação de ${labelMes(item.mes)} de ${item.ano}`}
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEtapaSelecionada(etapa.id)}
+                        className="cursor-pointer"
                       >
-                        <Trash2 />
+                        <Upload />
+                        Enviar comprovação
                       </Button>
-                    </div>
+                    )}
                   </div>
-                ))}
-              </div>
-            )}
+                );
+              })}
+            </div>
           </div>
         </section>
       </main>

@@ -117,7 +117,7 @@ export function ValidacaoUnidade({
 
         for (const planejamento of lista) {
           for (const indicador of planejamento.indicadores) {
-            if (indicador.unidade_id !== unidadeId) continue;
+            if (!indicador.unidades.some((u) => u.id === unidadeId)) continue;
             promessas.push(
               fetchComprovacoes(indicador.id).then((comprovacoes) =>
                 comprovacoes

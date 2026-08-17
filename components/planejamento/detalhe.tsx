@@ -146,7 +146,7 @@ export function DetalhePlanejamento({ id }: { id: number }) {
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <h3 className="font-medium">{indicador.nome}</h3>
                     <span className="inline-flex w-fit rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-                      Fórmula: {indicador.formula}
+                      ({indicador.rotulo_x} / {indicador.rotulo_y}) x 100
                     </span>
                   </div>
 
@@ -180,6 +180,22 @@ export function DetalhePlanejamento({ id }: { id: number }) {
                     <p className="mt-1 text-sm">{indicador.orientacao}</p>
                   </div>
 
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                      <span>Progresso</span>
+                      <span>{indicador.progresso}%</span>
+                    </div>
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full bg-bege"
+                        style={{ width: `${indicador.progresso}%` }}
+                      />
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {indicador.etapas.length} etapa(s) cadastrada(s)
+                    </p>
+                  </div>
+
                   <div className="mt-4 flex flex-wrap gap-4 text-sm">
                     <span className="flex items-center gap-2 text-muted-foreground">
                       <CalendarDays className="h-4 w-4" />
@@ -187,7 +203,10 @@ export function DetalhePlanejamento({ id }: { id: number }) {
                     </span>
                     <span className="flex items-center gap-2 text-muted-foreground">
                       <User className="h-4 w-4" />
-                      Responsável: {indicador.unidade?.nome ?? "—"}
+                      Responsável:{" "}
+                      {indicador.unidades.length > 0
+                        ? indicador.unidades.map((u) => u.nome).join(", ")
+                        : "—"}
                     </span>
                   </div>
                 </div>

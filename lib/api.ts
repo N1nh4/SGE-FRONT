@@ -80,15 +80,22 @@ export type UnidadeResumo = {
   nome: string;
 };
 
+export type Etapa = {
+  id: number;
+  nome: string;
+};
+
 export type IndicadorPlanejamento = {
   id: number;
   nome: string;
   meta: string;
-  formula: string;
+  rotulo_x: string;
+  rotulo_y: string;
   orientacao: string;
   prazo: string | null;
-  unidade_id: number | null;
-  unidade: UnidadeResumo | null;
+  unidades: UnidadeResumo[];
+  etapas: Etapa[];
+  progresso: number;
   created_at: string;
   updated_at: string;
 };
@@ -106,10 +113,12 @@ export type Planejamento = {
 export type NovoIndicador = {
   nome: string;
   meta: string;
-  formula: string;
+  rotulo_x: string;
+  rotulo_y: string;
   orientacao: string;
   prazo: string | null;
-  unidade_id: number | null;
+  unidade_ids: number[];
+  etapas: string[];
 };
 
 export type NovoPlanejamento = {
@@ -175,6 +184,7 @@ export type StatusComprovacao = "analise" | "aprovado" | "recusado";
 export type Comprovacao = {
   id: number;
   indicador_id: number;
+  etapa_id: number | null;
   ano: number;
   mes: number;
   arquivo_nome: string;
@@ -196,13 +206,13 @@ export async function fetchComprovacoes(
 
 export async function uploadComprovacao(
   indicadorId: number,
-  ano: number,
-  mes: number,
+  etapaId: number | null,
   arquivo: File,
 ): Promise<Comprovacao> {
   const dados = new FormData();
-  dados.append("ano", String(ano));
-  dados.append("mes", String(mes));
+  if (etapaId != null) dados.append("etapa_id", String(etapaId));
+  dados.append("ano", String(new Date().getFullYear()));
+  dados.append("mes", String(new Date().getMonth() + 1));
   dados.append("arquivo", arquivo);
   const res = await fetch(
     `${API_URL}/api/indicadores/${indicadorId}/comprovacoes`,
@@ -297,4 +307,54 @@ export async function updateUnidade(
     throw new Error("Resposta vazia ao atualizar unidade");
   }
   return atualizada;
+}
+
+export async function fetchUnidadeById(id: number): Promise<Unidade> {
+  const res = await fetch(`${API_URL}/api/unidades/${id}`);
+  const unidade = await handleResponse<Unidade>(res);
+  if (!unidade) {
+    throw new Error("Unidade não encontrada");
+  }
+  return unidade;
+}
+
+export type Colaborador = {
+  id: number;
+  nome: string;
+  email: string;
+  papel: string;
+  unidade_id: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type NovoColaborador = {
+  nome: string;
+  email: string;
+  papel?: string;
+};
+
+export async function fetchColaboradores(
+  unidadeId: number,
+): Promise<Colaborador[]> {
+  const res = await fetch(
+    `${API_URL}/api/unidades/${unidadeId}/colaboradores`,
+  );
+  return (await handleResponse<Colaborador[]>(res)) ?? [];
+}
+
+export async function createColaborador(
+  unidadeId: number,
+  dados: NovoColaborador,
+): Promise<Colaborador> {
+  const res = await fetch(`${API_URL}/api/usuarios`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...dados, unidade_id: unidadeId }),
+  });
+  const criado = await handleResponse<Colaborador>(res);
+  if (!criado) {
+    throw new Error("Resposta vazia ao criar colaborador");
+  }
+  return criado;
 }
