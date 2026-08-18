@@ -1,5 +1,36 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
+function authHeaders(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  const salvo = localStorage.getItem("auth");
+  if (!salvo) return {};
+  try {
+    const { token } = JSON.parse(salvo) as { token: string };
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  } catch {
+    return {};
+  }
+}
+
+async function apiFetch<T>(
+  path: string,
+  init?: RequestInit,
+): Promise<T | undefined> {
+  const res = await fetch(`${API_URL}${path}`, {
+    ...init,
+    headers: {
+      ...authHeaders(),
+      ...init?.headers,
+    },
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.detail ?? `Erro na requisição (${res.status})`);
+  }
+  if (res.status === 204) return undefined;
+  return res.json() as Promise<T>;
+}
+
 export type Objetivo = {
   id: number;
   codigo: string;
@@ -17,29 +48,17 @@ export type NovoObjetivo = {
   loa: string;
 };
 
-async function handleResponse<T>(res: Response): Promise<T | undefined> {
-  if (!res.ok) {
-    throw new Error(`Erro na requisição (${res.status})`);
-  }
-  if (res.status === 204) return undefined;
-  return res.json() as Promise<T>;
-}
-
 export async function fetchObjetivos(): Promise<Objetivo[]> {
-  const res = await fetch(`${API_URL}/api/objetivos`);
-  return (await handleResponse<Objetivo[]>(res)) ?? [];
+  return (await apiFetch<Objetivo[]>("/api/objetivos")) ?? [];
 }
 
 export async function createObjetivo(dados: NovoObjetivo): Promise<Objetivo> {
-  const res = await fetch(`${API_URL}/api/objetivos`, {
+  const criado = await apiFetch<Objetivo>("/api/objetivos", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(dados),
   });
-  const criado = await handleResponse<Objetivo>(res);
-  if (!criado) {
-    throw new Error("Resposta vazia ao criar objetivo");
-  }
+  if (!criado) throw new Error("Resposta vazia ao criar objetivo");
   return criado;
 }
 
@@ -47,23 +66,17 @@ export async function updateObjetivo(
   id: number,
   dados: NovoObjetivo,
 ): Promise<Objetivo> {
-  const res = await fetch(`${API_URL}/api/objetivos/${id}`, {
+  const atualizado = await apiFetch<Objetivo>(`/api/objetivos/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(dados),
   });
-  const atualizado = await handleResponse<Objetivo>(res);
-  if (!atualizado) {
-    throw new Error("Resposta vazia ao atualizar objetivo");
-  }
+  if (!atualizado) throw new Error("Resposta vazia ao atualizar objetivo");
   return atualizado;
 }
 
 export async function deleteObjetivo(id: number): Promise<void> {
-  const res = await fetch(`${API_URL}/api/objetivos/${id}`, {
-    method: "DELETE",
-  });
-  await handleResponse(res);
+  await apiFetch(`/api/objetivos/${id}`, { method: "DELETE" });
 }
 
 export type ObjetivoResumo = {
@@ -128,31 +141,24 @@ export type NovoPlanejamento = {
 };
 
 export async function fetchPlanejamento(): Promise<Planejamento[]> {
-  const res = await fetch(`${API_URL}/api/planejamento`);
-  return (await handleResponse<Planejamento[]>(res)) ?? [];
+  return (await apiFetch<Planejamento[]>("/api/planejamento")) ?? [];
 }
 
 export async function fetchPlanejamentoById(id: number): Promise<Planejamento> {
-  const res = await fetch(`${API_URL}/api/planejamento/${id}`);
-  const detalhe = await handleResponse<Planejamento>(res);
-  if (!detalhe) {
-    throw new Error("Planejamento não encontrado");
-  }
+  const detalhe = await apiFetch<Planejamento>(`/api/planejamento/${id}`);
+  if (!detalhe) throw new Error("Planejamento não encontrado");
   return detalhe;
 }
 
 export async function createPlanejamento(
   dados: NovoPlanejamento,
 ): Promise<Planejamento> {
-  const res = await fetch(`${API_URL}/api/planejamento`, {
+  const criado = await apiFetch<Planejamento>("/api/planejamento", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(dados),
   });
-  const criado = await handleResponse<Planejamento>(res);
-  if (!criado) {
-    throw new Error("Resposta vazia ao criar planejamento");
-  }
+  if (!criado) throw new Error("Resposta vazia ao criar planejamento");
   return criado;
 }
 
@@ -160,23 +166,17 @@ export async function updatePlanejamento(
   id: number,
   dados: NovoPlanejamento,
 ): Promise<Planejamento> {
-  const res = await fetch(`${API_URL}/api/planejamento/${id}`, {
+  const atualizado = await apiFetch<Planejamento>(`/api/planejamento/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(dados),
   });
-  const atualizado = await handleResponse<Planejamento>(res);
-  if (!atualizado) {
-    throw new Error("Resposta vazia ao atualizar planejamento");
-  }
+  if (!atualizado) throw new Error("Resposta vazia ao atualizar planejamento");
   return atualizado;
 }
 
 export async function deletePlanejamento(id: number): Promise<void> {
-  const res = await fetch(`${API_URL}/api/planejamento/${id}`, {
-    method: "DELETE",
-  });
-  await handleResponse(res);
+  await apiFetch(`/api/planejamento/${id}`, { method: "DELETE" });
 }
 
 export type StatusComprovacao = "analise" | "aprovado" | "recusado";
@@ -198,10 +198,11 @@ export type Comprovacao = {
 export async function fetchComprovacoes(
   indicadorId: number,
 ): Promise<Comprovacao[]> {
-  const res = await fetch(
-    `${API_URL}/api/indicadores/${indicadorId}/comprovacoes`,
+  return (
+    (await apiFetch<Comprovacao[]>(
+      `/api/indicadores/${indicadorId}/comprovacoes`,
+    )) ?? []
   );
-  return (await handleResponse<Comprovacao[]>(res)) ?? [];
 }
 
 export async function uploadComprovacao(
@@ -214,25 +215,16 @@ export async function uploadComprovacao(
   dados.append("ano", String(new Date().getFullYear()));
   dados.append("mes", String(new Date().getMonth() + 1));
   dados.append("arquivo", arquivo);
-  const res = await fetch(
-    `${API_URL}/api/indicadores/${indicadorId}/comprovacoes`,
-    {
-      method: "POST",
-      body: dados,
-    },
+  const criada = await apiFetch<Comprovacao>(
+    `/api/indicadores/${indicadorId}/comprovacoes`,
+    { method: "POST", body: dados },
   );
-  const criada = await handleResponse<Comprovacao>(res);
-  if (!criada) {
-    throw new Error("Resposta vazia ao enviar comprovação");
-  }
+  if (!criada) throw new Error("Resposta vazia ao enviar comprovação");
   return criada;
 }
 
 export async function deleteComprovacao(id: number): Promise<void> {
-  const res = await fetch(`${API_URL}/api/comprovacoes/${id}`, {
-    method: "DELETE",
-  });
-  await handleResponse(res);
+  await apiFetch(`/api/comprovacoes/${id}`, { method: "DELETE" });
 }
 
 export type DecisaoComprovacao = {
@@ -245,15 +237,12 @@ export async function decidirComprovacao(
   id: number,
   dados: DecisaoComprovacao,
 ): Promise<Comprovacao> {
-  const res = await fetch(`${API_URL}/api/comprovacoes/${id}`, {
+  const atualizada = await apiFetch<Comprovacao>(`/api/comprovacoes/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(dados),
   });
-  const atualizada = await handleResponse<Comprovacao>(res);
-  if (!atualizada) {
-    throw new Error("Resposta vazia ao decidir comprovação");
-  }
+  if (!atualizada) throw new Error("Resposta vazia ao decidir comprovação");
   return atualizada;
 }
 
@@ -269,52 +258,39 @@ export type Unidade = {
 };
 
 export async function fetchUnidades(): Promise<Unidade[]> {
-  const res = await fetch(`${API_URL}/api/unidades`);
-  return (await handleResponse<Unidade[]>(res)) ?? [];
+  return (await apiFetch<Unidade[]>("/api/unidades")) ?? [];
 }
 
 export async function createUnidade(nome: string): Promise<Unidade> {
-  const res = await fetch(`${API_URL}/api/unidades`, {
+  const criada = await apiFetch<Unidade>("/api/unidades", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ nome }),
   });
-  const criada = await handleResponse<Unidade>(res);
-  if (!criada) {
-    throw new Error("Resposta vazia ao criar unidade");
-  }
+  if (!criada) throw new Error("Resposta vazia ao criar unidade");
   return criada;
 }
 
 export async function deleteUnidade(id: number): Promise<void> {
-  const res = await fetch(`${API_URL}/api/unidades/${id}`, {
-    method: "DELETE",
-  });
-  await handleResponse(res);
+  await apiFetch(`/api/unidades/${id}`, { method: "DELETE" });
 }
 
 export async function updateUnidade(
   id: number,
   nome: string,
 ): Promise<Unidade> {
-  const res = await fetch(`${API_URL}/api/unidades/${id}`, {
+  const atualizada = await apiFetch<Unidade>(`/api/unidades/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ nome }),
   });
-  const atualizada = await handleResponse<Unidade>(res);
-  if (!atualizada) {
-    throw new Error("Resposta vazia ao atualizar unidade");
-  }
+  if (!atualizada) throw new Error("Resposta vazia ao atualizar unidade");
   return atualizada;
 }
 
 export async function fetchUnidadeById(id: number): Promise<Unidade> {
-  const res = await fetch(`${API_URL}/api/unidades/${id}`);
-  const unidade = await handleResponse<Unidade>(res);
-  if (!unidade) {
-    throw new Error("Unidade não encontrada");
-  }
+  const unidade = await apiFetch<Unidade>(`/api/unidades/${id}`);
+  if (!unidade) throw new Error("Unidade não encontrada");
   return unidade;
 }
 
@@ -331,30 +307,29 @@ export type Colaborador = {
 export type NovoColaborador = {
   nome: string;
   email: string;
+  senha: string;
   papel?: string;
 };
 
 export async function fetchColaboradores(
   unidadeId: number,
 ): Promise<Colaborador[]> {
-  const res = await fetch(
-    `${API_URL}/api/unidades/${unidadeId}/colaboradores`,
+  return (
+    (await apiFetch<Colaborador[]>(
+      `/api/unidades/${unidadeId}/colaboradores`,
+    )) ?? []
   );
-  return (await handleResponse<Colaborador[]>(res)) ?? [];
 }
 
 export async function createColaborador(
   unidadeId: number,
   dados: NovoColaborador,
 ): Promise<Colaborador> {
-  const res = await fetch(`${API_URL}/api/usuarios`, {
+  const criado = await apiFetch<Colaborador>("/api/usuarios", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ...dados, unidade_id: unidadeId }),
   });
-  const criado = await handleResponse<Colaborador>(res);
-  if (!criado) {
-    throw new Error("Resposta vazia ao criar colaborador");
-  }
+  if (!criado) throw new Error("Resposta vazia ao criar colaborador");
   return criado;
 }

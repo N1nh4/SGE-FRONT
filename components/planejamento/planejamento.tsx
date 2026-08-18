@@ -76,6 +76,7 @@ export function Planejamento() {
     indicadorVazio(),
   ]);
   const [dropdownAberto, setDropdownAberto] = useState<number | null>(null);
+  const [etapaForm, setEtapaForm] = useState<1 | 2>(1);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -120,6 +121,7 @@ export function Planejamento() {
     setObjetivoId("");
     setNome("");
     setIndicadores([indicadorVazio()]);
+    setEtapaForm(1);
     setOpen(true);
   }
 
@@ -139,6 +141,7 @@ export function Planejamento() {
         etapas: indicador.etapas.map((e) => e.nome),
       })),
     );
+    setEtapaForm(1);
     setOpen(true);
   }
 
@@ -385,12 +388,41 @@ export function Planejamento() {
               {editando ? "Editar Planejamento" : "Novo Planejamento"}
             </DialogTitle>
             <DialogDescription>
-              Vincule uma iniciativa a um objetivo estratégico e adicione seus
-              indicadores.
+              {etapaForm === 1
+                ? "Defina o objetivo estratégico e a iniciativa."
+                : "Adicione os indicadores vinculados a esta iniciativa."}
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <div className="grid max-h-[55vh] gap-4 overflow-y-auto pr-1">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span
+              className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${
+                etapaForm === 1
+                  ? "bg-bege text-white"
+                  : "bg-muted text-muted-foreground"
+              }`}
+            >
+              1
+            </span>
+            <span className={etapaForm === 1 ? "font-medium text-foreground" : ""}>
+              Dados gerais
+            </span>
+            <span className="mx-1">—</span>
+            <span
+              className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${
+                etapaForm === 2
+                  ? "bg-bege text-white"
+                  : "bg-muted text-muted-foreground"
+              }`}
+            >
+              2
+            </span>
+            <span className={etapaForm === 2 ? "font-medium text-foreground" : ""}>
+              Indicadores
+            </span>
+          </div>
+
+          {etapaForm === 1 && (
+            <div className="grid gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="objetivo">Objetivo Estratégico</Label>
                 <select
@@ -433,7 +465,12 @@ export function Planejamento() {
                   required
                 />
               </div>
+            </div>
+          )}
 
+          {etapaForm === 2 && (
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+              <div className="grid max-h-[55vh] gap-4 overflow-y-auto pr-1">
               <div className="rounded-lg border bg-muted/30 p-4">
                 <div className="mb-3 flex items-center justify-between gap-2">
                   <Label className="text-sm font-medium">Indicadores</Label>
@@ -470,7 +507,6 @@ export function Planejamento() {
                           >
                             <Trash />
                           </Button>
-                          // ADICIONAR STATUS
                         )}
                       </div>
 
@@ -514,10 +550,8 @@ export function Planejamento() {
                         </div>
 
                         <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
-                          <div className="flex items-center gap-1 d">
-                            <Label htmlFor={`ind-rotulo-x-${index}`}>
-                              Forma de Calculo
-                            </Label>
+                          <div className="flex items-center gap-1">
+                            <Label>Forma de Cálculo</Label>
                           </div>
 
                           <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2">
@@ -790,7 +824,25 @@ export function Planejamento() {
                 </div>
               </div>
             </div>
+              <DialogFooter className="border-t-0 bg-transparent">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setEtapaForm(1)}
+                >
+                  Voltar
+                </Button>
+                <Button
+                  type="submit"
+                  className="cursor-pointer bg-bege hover:bg-bege/90"
+                >
+                  {editando ? "Salvar alterações" : "Salvar"}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
 
+          {etapaForm === 1 && (
             <DialogFooter className="border-t-0 bg-transparent">
               <Button
                 type="button"
@@ -803,13 +855,14 @@ export function Planejamento() {
                 Cancelar
               </Button>
               <Button
-                type="submit"
-                className={"cursor-pointer bg-bege hover:bg-bege/90"}
+                type="button"
+                onClick={() => setEtapaForm(2)}
+                className="cursor-pointer bg-bege hover:bg-bege/90"
               >
-                {editando ? "Salvar alterações" : "Salvar"}
+                Próximo
               </Button>
             </DialogFooter>
-          </form>
+          )}
         </DialogContent>
       </Dialog>
 

@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   Building2,
   LoaderCircle,
+  Lock,
   Mail,
   Plus,
   User,
@@ -38,6 +39,7 @@ export function DetalheUnidade({ unidadeId }: { unidadeId: number }) {
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [papel, setPapel] = useState("default");
+  const [senha, setSenha] = useState("");
   const [salvando, setSalvando] = useState(false);
 
   useEffect(() => {
@@ -60,17 +62,19 @@ export function DetalheUnidade({ unidadeId }: { unidadeId: number }) {
     setNome("");
     setEmail("");
     setPapel("default");
+    setSenha("");
     setOpen(true);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!nome.trim() || !email.trim()) return;
+    if (!nome.trim() || !email.trim() || !senha.trim()) return;
     setSalvando(true);
     try {
       await createColaborador(unidadeId, {
         nome: nome.trim(),
         email: email.trim(),
+        senha: senha.trim(),
         papel,
       });
       toast.success("Colaborador adicionado com sucesso.");
@@ -144,7 +148,7 @@ export function DetalheUnidade({ unidadeId }: { unidadeId: number }) {
             </h2>
             <p className="text-sm text-muted-foreground">
               {colaboradores.length > 0
-                ? `${colaboradores.length} colaborador(es): ${colaboradores.map((c) => c.nome).join(", ")}`
+                ? `${colaboradores.length} colaboradores`
                 : "Nenhum colaborador vinculado."}
             </p>
           </div>
@@ -232,6 +236,23 @@ export function DetalheUnidade({ unidadeId }: { unidadeId: number }) {
             </div>
 
             <div className="grid gap-2">
+              <Label htmlFor="senha">Senha</Label>
+              <div className="relative">
+                <Lock className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="senha"
+                  type="password"
+                  value={senha}
+                  onChange={(event) => setSenha(event.target.value)}
+                  placeholder="Mínimo 6 caracteres"
+                  className="h-10 pl-9"
+                  minLength={6}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-2">
               <Label htmlFor="papel">Papel</Label>
               <select
                 id="papel"
@@ -240,7 +261,8 @@ export function DetalheUnidade({ unidadeId }: { unidadeId: number }) {
                 className="h-10 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30"
               >
                 <option value="default">Default</option>
-                <option value="ponto_focal">Ponto Focal</option>
+                <option value="adm">Adm</option>
+                <option value="master">Master</option>
               </select>
             </div>
 

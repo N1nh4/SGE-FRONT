@@ -1,4 +1,4 @@
-import { Sidebar } from "@/components/sidebar";
+import { ProtectedLayout } from "@/components/protected-layout";
 import { PaginaComprovacoes } from "@/components/planejamento/comprovacoes";
 
 export default async function Page({
@@ -9,14 +9,11 @@ export default async function Page({
   const { id, indicadorId } = await params;
 
   return (
-    <div className="flex min-h-screen">
-      <Sidebar />
-      <div className="flex flex-1 flex-col">
-        <PaginaComprovacoes
-          planejamentoId={Number(id)}
-          indicadorId={Number(indicadorId)}
-        />
-      </div>
-    </div>
+    <ProtectedLayout>
+      <PaginaComprovacoes
+        planejamentoId={Number(id)}
+        indicadorId={Number(indicadorId)}
+      />
+    </ProtectedLayout>
   );
 }

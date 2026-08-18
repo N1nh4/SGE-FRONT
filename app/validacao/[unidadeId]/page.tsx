@@ -1,4 +1,4 @@
-import { Sidebar } from "@/components/sidebar";
+import { ProtectedLayout } from "@/components/protected-layout";
 import { ValidacaoUnidade } from "@/components/validacao/validacao-unidade";
 
 export default async function Page({
@@ -14,15 +14,12 @@ export default async function Page({
   const anoAtual = new Date().getFullYear();
 
   return (
-    <div className="flex min-h-screen">
-      <Sidebar />
-      <div className="flex flex-1 flex-col">
-        <ValidacaoUnidade
-          unidadeId={Number(unidadeId)}
-          mes={Number(mes ?? mesAtual)}
-          ano={Number(ano ?? anoAtual)}
-        />
-      </div>
-    </div>
+    <ProtectedLayout>
+      <ValidacaoUnidade
+        unidadeId={Number(unidadeId)}
+        mes={Number(mes ?? mesAtual)}
+        ano={Number(ano ?? anoAtual)}
+      />
+    </ProtectedLayout>
   );
 }

@@ -1,7 +1,12 @@
+"use client";
+
 import Link from "next/link";
-import { Building2, ClipboardCheck, Goal, Target } from "lucide-react";
+import { BarChart3, Building2, ClipboardCheck, Goal, LogOut, Target } from "lucide-react";
+import { useAuth } from "@/context/auth-context";
+import { canAccessRoute } from "@/lib/roles";
 
 const navItems = [
+  { label: "Indicadores", href: "/indicadores", icon: BarChart3 },
   { label: "Objetivos", href: "/objetivos", icon: Target },
   { label: "Planejamento", href: "/planejamento", icon: Goal },
   { label: "Unidades", href: "/unidades", icon: Building2 },
@@ -9,6 +14,12 @@ const navItems = [
 ];
 
 export function Sidebar() {
+  const { usuario, logout } = useAuth();
+
+  const itensVisiveis = navItems.filter((item) =>
+    usuario ? canAccessRoute(usuario.papel, item.href) : false,
+  );
+
   return (
     <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col bg-azul-escuro text-white">
       <div className="flex h-16 items-center gap-2.5 border-b border-white/10 px-6">
@@ -19,7 +30,7 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 space-y-1 px-3 py-4">
-        {navItems.map(({ label, href, icon: Icon }) => (
+        {itensVisiveis.map(({ label, href, icon: Icon }) => (
           <Link
             key={href}
             href={href}
@@ -30,6 +41,21 @@ export function Sidebar() {
           </Link>
         ))}
       </nav>
+
+      <div className="border-t border-white/10 px-4 py-4">
+        <div className="flex items-center justify-between">
+          <span className="truncate text-xs text-white/70">
+            {usuario?.nome}
+          </span>
+          <button
+            onClick={logout}
+            className="cursor-pointer rounded p-1 text-white/50 transition-colors hover:bg-white/10 hover:text-white"
+            title="Sair"
+          >
+            <LogOut className="size-4" />
+          </button>
+        </div>
+      </div>
     </aside>
   );
 }
