@@ -103,18 +103,18 @@ export function Planejamento() {
   useEffect(() => {
     fetchPlanejamento()
       .then(setItens)
-      .catch(() => {
-        // Backend offline: mantém a lista local.
+      .catch((err) => {
+        console.error("Erro ao buscar planejamento:", err);
       });
     fetchObjetivos()
       .then(setObjetivos)
-      .catch(() => {
-        // Backend offline: mantém o select vazio.
+      .catch((err) => {
+        console.error("Erro ao buscar objetivos:", err);
       });
     fetchUnidades()
       .then(setUnidades)
-      .catch(() => {
-        // Backend offline: mantém o select vazio.
+      .catch((err) => {
+        console.error("Erro ao buscar unidades:", err);
       });
   }, []);
 

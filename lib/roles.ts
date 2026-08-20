@@ -7,9 +7,9 @@ export const ROLES = {
 export type Papel = (typeof ROLES)[keyof typeof ROLES];
 
 const roleRoutes: Record<Papel, string[]> = {
-  master: ["/indicadores", "/objetivos", "/planejamento", "/unidades", "/validacao", "/pendencias"],
-  adm: ["/indicadores", "/objetivos", "/planejamento", "/validacao", "/pendencias"],
-  default: ["/indicadores", "/planejamento", "/pendencias"],
+  master: ["/indicadores", "/objetivos", "/planejamento", "/comprovacoes", "/unidades", "/validacao", "/pendencias"],
+  adm: ["/indicadores", "/objetivos", "/planejamento", "/comprovacoes", "/validacao", "/pendencias"],
+  default: ["/indicadores", "/planejamento", "/comprovacoes", "/pendencias"],
 };
 
 export function canAccessRoute(papel: string, pathname: string): boolean {

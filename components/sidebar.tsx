@@ -1,16 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { AlertCircle, BarChart3, Building2, ClipboardCheck, Goal, LogOut, Target } from "lucide-react";
+import { AlertCircle, BarChart3, Building2, ClipboardCheck, FileCheck, Goal, LogOut, Target } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { canAccessRoute } from "@/lib/roles";
 
 const navItems = [
   { label: "Indicadores", href: "/indicadores", icon: BarChart3 },
-  { label: "Objetivos", href: "/objetivos", icon: Target },
+  { label: "Comprovações", href: "/comprovacoes", icon: FileCheck },
   { label: "Planejamento", href: "/planejamento", icon: Goal },
-  { label: "Unidades", href: "/unidades", icon: Building2 },
   { label: "Validação", href: "/validacao", icon: ClipboardCheck },
+  { label: "Objetivos", href: "/objetivos", icon: Target },
+  { label: "Unidades", href: "/unidades", icon: Building2 },
   { label: "Pendências", href: "/pendencias", icon: AlertCircle },
 ];
 
