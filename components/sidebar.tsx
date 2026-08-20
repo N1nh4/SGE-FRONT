@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BarChart3, Building2, ClipboardCheck, Goal, LogOut, Target } from "lucide-react";
+import { AlertCircle, BarChart3, Building2, ClipboardCheck, Goal, LogOut, Target } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { canAccessRoute } from "@/lib/roles";
 
@@ -11,6 +11,7 @@ const navItems = [
   { label: "Planejamento", href: "/planejamento", icon: Goal },
   { label: "Unidades", href: "/unidades", icon: Building2 },
   { label: "Validação", href: "/validacao", icon: ClipboardCheck },
+  { label: "Pendências", href: "/pendencias", icon: AlertCircle },
 ];
 
 export function Sidebar() {

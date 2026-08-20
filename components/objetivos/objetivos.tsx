@@ -34,38 +34,6 @@ import {
   type Objetivo,
 } from "@/lib/api";
 
-const objetivosIniciais: Objetivo[] = [
-  {
-    id: 1,
-    codigo: "OE1",
-    nome: "Integrar, qualificar, desenvolver e valorizar os colaboradores",
-    descricao:
-      "Aumentar a participação de mercado em 10 pontos percentuais nos próximos 12 meses, com foco nas regiões Norte e Nordeste.",
-    ppa: "Programa Gestão Pública Moderna, Planejada, Transparente e Equilibrada (Eixo: Mais Eficiência de Gestão)Ações: Capacita Mais - Servidores e Lideranças ; Plano de Desenvolvimento do Servidor",
-    loa: "Unidade Orçamentária - 411110/41110 - FUMPRES FIN Subação - 261300 - Manutenção do FUMPRES FIN",
-  },
-  {
-    id: 2,
-    codigo: "OE2",
-    nome: "Promover o bem-estar e o fortalecimento do ambiente organizacional",
-    descricao:
-      "Otimizar processos internos e reduzir custos operacionais em até 15% sem comprometer a qualidade do atendimento.",
-    ppa: "Programa Administração do Executivo Municipal (Eixo: Mais Eficiência de Gestão) Ações: Administração de Pessoal e Encargos; Manutenção do FUMPRES FIN; Programa de Saúde Ocupacional",
-    loa: "Unidade Orçamentária - 411110/41110 - FUMPRES FIN                                                                                Subação - 261300 - Manutenção do FUMPRES FIN                                                                        Subação - 250237 - Manutenção da Tecnologia da Informação e Comunicação - FUMPRES                Subação - 250300 - Concessão de Beneficios - Previdência do Regime Estatutário",
-  },
-  {
-    id: 3,
-    codigo: "OE3",
-    nome: "Fortalecer a governança e a gestão de riscos.",
-    descricao:
-      "Alcançar índice de satisfação (NPS) acima de 80, implementando melhorias contínuas nos canais de atendimento e no pós-venda.",
-    ppa: "Programa Gestão Pública Moderna, Planejada, Transparente e Equilibrada (Eixo: Mais Eficiência de Gestão) Ações: Programa Municipal de Gestão de Riscos",
-    loa: "Unidade Orçamentária - 411110/41110 - FUMPRES FIN Subação - 261300 - Manutenção do FUMPRES FIN Subação - 250237 - Manutenção da Tecnologia da Informação e Comunicação - FUMPRES",
-  },
-];
-
-const ID_MOCK = 10_000;
-
 const breakpointColumns = {
   default: 3,
   1280: 3,
@@ -75,7 +43,7 @@ const breakpointColumns = {
 };
 
 export function Objetivos() {
-  const [objetivos, setObjetivos] = useState(objetivosIniciais);
+  const [objetivos, setObjetivos] = useState<Objetivo[]>([]);
   const [open, setOpen] = useState(false);
   const [editando, setEditando] = useState<Objetivo | null>(null);
   const [excluindo, setExcluindo] = useState<Objetivo | null>(null);
@@ -87,18 +55,8 @@ export function Objetivos() {
 
   useEffect(() => {
     fetchObjetivos()
-      .then((doBackend) => {
-        setObjetivos([
-          ...doBackend,
-          ...objetivosIniciais.map((mock) => ({
-            ...mock,
-            id: mock.id + ID_MOCK,
-          })),
-        ]);
-      })
-      .catch(() => {
-        // Backend offline: mantém os dados locais.
-      });
+      .then(setObjetivos)
+      .catch(() => {});
   }, []);
 
   function abrirNovo() {
@@ -126,26 +84,14 @@ export function Objetivos() {
     const dados = { codigo, nome, descricao, ppa, loa };
 
     if (editando) {
-      if (editando.id >= ID_MOCK) {
+      try {
+        const atualizado = await updateObjetivo(editando.id, dados);
         setObjetivos((prev) =>
-          prev.map((o) => (o.id === editando.id ? { ...o, ...dados } : o)),
+          prev.map((o) => (o.id === atualizado.id ? atualizado : o)),
         );
         toast.success("Objetivo atualizado com sucesso.");
-      } else {
-        try {
-          const atualizado = await updateObjetivo(editando.id, dados);
-          setObjetivos((prev) =>
-            prev.map((o) => (o.id === atualizado.id ? atualizado : o)),
-          );
-          toast.success("Objetivo atualizado com sucesso.");
-        } catch {
-          setObjetivos((prev) =>
-            prev.map((o) => (o.id === editando.id ? { ...o, ...dados } : o)),
-          );
-          toast.error(
-            "Erro ao atualizar o objetivo. Alteração mantida apenas localmente.",
-          );
-        }
+      } catch {
+        toast.error("Erro ao atualizar o objetivo.");
       }
     } else {
       try {
@@ -153,10 +99,7 @@ export function Objetivos() {
         setObjetivos((prev) => [...prev, criado]);
         toast.success("Objetivo criado com sucesso.");
       } catch {
-        setObjetivos((prev) => [...prev, { ...dados, id: Date.now() }]);
-        toast.error(
-          "Erro ao criar o objetivo. Alteração mantida apenas localmente.",
-        );
+        toast.error("Erro ao criar o objetivo.");
       }
     }
 
@@ -172,12 +115,6 @@ export function Objetivos() {
   async function confirmarExclusao() {
     if (!excluindo) return;
     const id = excluindo.id;
-    if (id >= ID_MOCK) {
-      setObjetivos((prev) => prev.filter((o) => o.id !== id));
-      toast.success("Objetivo excluído com sucesso.");
-      setExcluindo(null);
-      return;
-    }
     try {
       await deleteObjetivo(id);
       toast.success("Objetivo excluído com sucesso.");
@@ -303,22 +240,22 @@ export function Objetivos() {
             </div>
             <div className="grid gap-2 rounded-md">
               <Label htmlFor="ppa">Vínculação ao PPA</Label>
-              <Input
+              <Textarea
                 id="ppa"
                 value={ppa}
                 onChange={(event) => setPpa(event.target.value)}
-                placeholder="Nome do PPA"
+                placeholder="Vínculação ao PPA"
                 className="focus-visible:ring-0 focus-visible:border-input"
                 required
               />
             </div>
             <div className="grid gap-2 rounded-md">
               <Label htmlFor="loa">LOA</Label>
-              <Input
+              <Textarea
                 id="loa"
                 value={loa}
                 onChange={(event) => setLoa(event.target.value)}
-                placeholder="Nome do LOA"
+                placeholder="LOA"
                 className="focus-visible:ring-0 focus-visible:border-input"
                 required
               />

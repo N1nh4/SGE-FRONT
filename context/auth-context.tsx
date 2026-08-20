@@ -19,6 +19,7 @@ export type Usuario = {
   email: string;
   papel: string;
   unidade_id: number | null;
+  status: number;
 };
 
 type AuthContextValue = {

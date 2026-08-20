@@ -250,6 +250,25 @@ export function urlArquivoComprovacao(id: number): string {
   return `${API_URL}/api/comprovacoes/${id}/arquivo`;
 }
 
+export async function abrirArquivoComprovacao(id: number): Promise<void> {
+  const res = await fetch(urlArquivoComprovacao(id), {
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error("Erro ao buscar arquivo");
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank");
+}
+
+export async function fetchArquivoComprovacaoUrl(id: number): Promise<string> {
+  const res = await fetch(urlArquivoComprovacao(id), {
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error("Erro ao buscar arquivo");
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
+}
+
 export type Unidade = {
   id: number;
   nome: string;
@@ -300,6 +319,7 @@ export type Colaborador = {
   email: string;
   papel: string;
   unidade_id: number | null;
+  status: number;
   created_at: string;
   updated_at: string;
 };
@@ -309,6 +329,7 @@ export type NovoColaborador = {
   email: string;
   senha: string;
   papel?: string;
+  status?: number;
 };
 
 export async function fetchColaboradores(
@@ -332,4 +353,30 @@ export async function createColaborador(
   });
   if (!criado) throw new Error("Resposta vazia ao criar colaborador");
   return criado;
+}
+
+export async function updateUsuarioStatus(
+  usuarioId: number,
+  status: number,
+): Promise<Colaborador> {
+  const atualizado = await apiFetch<Colaborador>(`/api/usuarios/${usuarioId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
+  if (!atualizado) throw new Error("Resposta vazia ao atualizar status");
+  return atualizado;
+}
+
+export async function updateColaborador(
+  usuarioId: number,
+  dados: { nome?: string; email?: string; senha?: string; papel?: string; status?: number },
+): Promise<Colaborador> {
+  const atualizado = await apiFetch<Colaborador>(`/api/usuarios/${usuarioId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(dados),
+  });
+  if (!atualizado) throw new Error("Resposta vazia ao atualizar colaborador");
+  return atualizado;
 }

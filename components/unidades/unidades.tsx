@@ -49,6 +49,7 @@ function formatarData(iso: string): string {
 export function Unidades() {
   const [unidades, setUnidades] = useState<Unidade[]>([]);
   const [contagens, setContagens] = useState<Record<number, number>>({});
+  const [carregando, setCarregando] = useState(true);
   const [open, setOpen] = useState(false);
   const [editando, setEditando] = useState<Unidade | null>(null);
   const [excluindo, setExcluindo] = useState<Unidade | null>(null);
@@ -56,18 +57,26 @@ export function Unidades() {
   const [salvando, setSalvando] = useState(false);
 
   useEffect(() => {
+    let ativo = true;
     fetchUnidades()
       .then((lista) => {
+        if (!ativo) return;
         setUnidades(lista);
-        for (const u of lista) {
+        const promises = lista.map((u) =>
           fetchColaboradores(u.id)
-            .then((cols) => setContagens((prev) => ({ ...prev, [u.id]: cols.length })))
-            .catch(() => {});
-        }
+            .then((cols) => {
+              if (ativo) setContagens((prev) => ({ ...prev, [u.id]: cols.length }));
+            })
+            .catch(() => {}),
+        );
+        Promise.allSettled(promises).finally(() => {
+          if (ativo) setCarregando(false);
+        });
       })
       .catch(() => {
-        // Backend offline: mantém a lista local.
+        if (ativo) setCarregando(false);
       });
+    return () => { ativo = false; };
   }, []);
 
   function abrirNovo() {
@@ -141,7 +150,11 @@ export function Unidades() {
       </header>
 
       <main className="flex-1 bg-cinza-claro p-8">
-        {unidades.length === 0 ? (
+        {carregando ? (
+          <div className="flex items-center justify-center py-12">
+            <LoaderCircle className="animate-spin size-6 text-muted-foreground" />
+          </div>
+        ) : unidades.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             Nenhuma unidade cadastrada ainda.
           </p>
@@ -157,7 +170,7 @@ export function Unidades() {
                 </h2>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {contagens[unidade.id] != null
-                    ? `${contagens[unidade.id]} colaborador(es)`
+                    ? `${contagens[unidade.id]} ${contagens[unidade.id] === 1 ? "colaborador" : "colaboradores"}`
                     : ""}
                 </p>
                 {/* <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">

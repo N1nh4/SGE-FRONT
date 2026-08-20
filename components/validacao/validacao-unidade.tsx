@@ -1,37 +1,21 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Building2,
-  Check,
-  ExternalLink,
   FileText,
   LoaderCircle,
-  X,
 } from "lucide-react";
+import Masonry from "react-masonry-css";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
-import {
-  decidirComprovacao,
   fetchComprovacoes,
   fetchPlanejamento,
   fetchUnidades,
-  urlArquivoComprovacao,
   type Planejamento,
-  type StatusComprovacao,
   type Unidade,
 } from "@/lib/api";
 
@@ -50,27 +34,21 @@ const MESES = [
   "Dezembro",
 ];
 
-type ComprovacaoValidacao = {
-  id: number;
-  arquivo_nome: string;
-  created_at: string;
-  objetivo_codigo: string;
-  objetivo_nome: string;
-  iniciativa_nome: string;
-  meta: string;
-  status: StatusComprovacao;
+type IniciativaResumo = {
+  planejamentoId: number;
+  iniciativaNome: string;
+  objetivoCodigo: string;
+  objetivoNome: string;
+  totalIndicadores: number;
+  totalComprovacoes: number;
 };
 
-const ROTULO_STATUS: Record<StatusComprovacao, string> = {
-  analise: "Em análise",
-  aprovado: "Aprovado",
-  recusado: "Recusado",
-};
-
-const CLASSE_STATUS: Record<StatusComprovacao, string> = {
-  analise: "bg-muted text-muted-foreground",
-  aprovado: "bg-green-600/15 text-green-700",
-  recusado: "bg-red-600/15 text-red-700",
+const breakpointColumns = {
+  default: 3,
+  1280: 3,
+  1024: 2,
+  768: 2,
+  640: 1,
 };
 
 export function ValidacaoUnidade({
@@ -82,17 +60,11 @@ export function ValidacaoUnidade({
   mes: number;
   ano: number;
 }) {
+  const router = useRouter();
   const [unidade, setUnidade] = useState<Unidade | null>(null);
-  const [planejamentos, setPlanejamentos] = useState<Planejamento[]>([]);
-  const [itens, setItens] = useState<ComprovacaoValidacao[]>([]);
+  const [iniciativas, setIniciativas] = useState<IniciativaResumo[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState(false);
-  const [reprovando, setReprovando] = useState<ComprovacaoValidacao | null>(
-    null,
-  );
-  const [justificativa, setJustificativa] = useState("");
-  const [prazoReenvio, setPrazoReenvio] = useState("");
-  const [salvando, setSalvando] = useState(false);
 
   useEffect(() => {
     fetchUnidades()
@@ -100,9 +72,7 @@ export function ValidacaoUnidade({
         const encontrada = unidades.find((u) => u.id === unidadeId);
         if (encontrada) setUnidade(encontrada);
       })
-      .catch(() => {
-        // Backend offline.
-      });
+      .catch(() => {});
   }, [unidadeId]);
 
   useEffect(() => {
@@ -111,35 +81,48 @@ export function ValidacaoUnidade({
     fetchPlanejamento()
       .then(async (lista) => {
         if (!ativo) return;
-        setPlanejamentos(lista);
 
-        const promessas: Promise<ComprovacaoValidacao[]>[] = [];
+        const iniciativasMap = new Map<
+          number,
+          { planejamento: Planejamento; indicadoresCount: number; comprovacoesCount: number }
+        >();
 
         for (const planejamento of lista) {
+          let indicadoresCount = 0;
+          let comprovacoesCount = 0;
+
           for (const indicador of planejamento.indicadores) {
             if (!indicador.unidades.some((u) => u.id === unidadeId)) continue;
-            promessas.push(
-              fetchComprovacoes(indicador.id).then((comprovacoes) =>
-                comprovacoes
-                  .filter((c) => c.ano === ano && c.mes === mes)
-                  .map((c) => ({
-                    id: c.id,
-                    arquivo_nome: c.arquivo_nome,
-                    created_at: c.created_at,
-                    objetivo_codigo: planejamento.objetivo.codigo,
-                    objetivo_nome: planejamento.objetivo.nome,
-                    iniciativa_nome: planejamento.nome,
-                    meta: indicador.meta,
-                    status: c.status,
-                  })),
-              ),
-            );
+            indicadoresCount++;
+            const comprovacoes = await fetchComprovacoes(indicador.id);
+            comprovacoesCount += comprovacoes.filter(
+              (c) => c.ano === ano && c.mes === mes,
+            ).length;
+          }
+
+          if (indicadoresCount > 0) {
+            iniciativasMap.set(planejamento.id, {
+              planejamento,
+              indicadoresCount,
+              comprovacoesCount,
+            });
           }
         }
 
-        const agrupadas = await Promise.all(promessas);
+        const resultado: IniciativaResumo[] = [];
+        for (const [, { planejamento, indicadoresCount, comprovacoesCount }] of iniciativasMap) {
+          resultado.push({
+            planejamentoId: planejamento.id,
+            iniciativaNome: planejamento.nome,
+            objetivoCodigo: planejamento.objetivo.codigo,
+            objetivoNome: planejamento.objetivo.nome,
+            totalIndicadores: indicadoresCount,
+            totalComprovacoes: comprovacoesCount,
+          });
+        }
+
         if (!ativo) return;
-        setItens(agrupadas.flat());
+        setIniciativas(resultado);
       })
       .catch(() => {
         if (ativo) setErro(true);
@@ -152,66 +135,6 @@ export function ValidacaoUnidade({
       ativo = false;
     };
   }, [unidadeId, mes, ano]);
-
-  const ordenados = useMemo(
-    () =>
-      itens.slice().sort((a, b) => {
-        return (
-          a.objetivo_codigo.localeCompare(b.objetivo_codigo) ||
-          a.iniciativa_nome.localeCompare(b.iniciativa_nome)
-        );
-      }),
-    [itens],
-  );
-
-  function abrirReprovacao(item: ComprovacaoValidacao) {
-    setReprovando(item);
-    setJustificativa("");
-    setPrazoReenvio("");
-  }
-
-  async function confirmarReprovacao() {
-    if (!reprovando) return;
-    if (!justificativa.trim()) {
-      toast.error("Informe a justificativa da reprovação.");
-      return;
-    }
-    setSalvando(true);
-    try {
-      const atualizada = await decidirComprovacao(reprovando.id, {
-        status: "recusado",
-        justificativa: justificativa.trim(),
-        prazo_reenvio: prazoReenvio || null,
-      });
-      setItens((prev) =>
-        prev.map((item) =>
-          item.id === atualizada.id ? { ...item, status: atualizada.status } : item,
-        ),
-      );
-      toast.success("Comprovação reprovada.");
-    } catch {
-      toast.error("Erro ao reprovar a comprovação.");
-    } finally {
-      setSalvando(false);
-      setReprovando(null);
-    }
-  }
-
-  async function aprovar(item: ComprovacaoValidacao) {
-    try {
-      const atualizada = await decidirComprovacao(item.id, {
-        status: "aprovado",
-      });
-      setItens((prev) =>
-        prev.map((i) =>
-          i.id === atualizada.id ? { ...i, status: atualizada.status } : i,
-        ),
-      );
-      toast.success("Comprovação aprovada.");
-    } catch {
-      toast.error("Erro ao aprovar a comprovação.");
-    }
-  }
 
   return (
     <>
@@ -244,173 +167,66 @@ export function ValidacaoUnidade({
         {carregando && (
           <div className="flex items-center justify-center gap-3 py-16 text-sm text-muted-foreground">
             <LoaderCircle className="h-5 w-5 animate-spin" />
-            Carregando comprovações...
+            Carregando iniciativas...
           </div>
         )}
 
         {!carregando && erro && (
           <div className="rounded-xl border bg-card p-10 text-center text-sm text-muted-foreground">
-            Não foi possível carregar as comprovações.
+            Não foi possível carregar as iniciativas.
           </div>
         )}
 
-        {!carregando && !erro && planejamentos.length === 0 && (
+        {!carregando && !erro && iniciativas.length === 0 && (
           <div className="rounded-xl border bg-card p-10 text-center text-sm text-muted-foreground">
-            Nenhum planejamento cadastrado.
+            Nenhuma iniciativa encontrada para esta unidade em {MESES[mes - 1]}{" "}
+            de {ano}.
           </div>
         )}
 
-        {!carregando &&
-          !erro &&
-          planejamentos.length > 0 &&
-          ordenados.length === 0 && (
-            <div className="rounded-xl border bg-card p-10 text-center text-sm text-muted-foreground">
-              Nenhuma comprovação enviada para esta unidade em {MESES[mes - 1]}{" "}
-              de {ano}.
-            </div>
-          )}
-
-        {!carregando && !erro && ordenados.length > 0 && (
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
-            {ordenados.map((item) => (
+        {!carregando && !erro && iniciativas.length > 0 && (
+          <Masonry
+            breakpointCols={breakpointColumns}
+            className="flex w-auto -ml-4"
+            columnClassName="bg-clip-padding pl-4"
+          >
+            {iniciativas.map((iniciativa) => (
               <article
-                key={item.id}
-                className="flex flex-col rounded-xl border bg-card p-5 shadow-sm transition-shadow hover:shadow-md"
+                key={iniciativa.planejamentoId}
+                onClick={() =>
+                  router.push(
+                    `/validacao/${unidadeId}/${iniciativa.planejamentoId}?mes=${mes}&ano=${ano}`,
+                  )
+                }
+                className="mb-4 flex cursor-pointer flex-col rounded-xl border bg-card p-5 shadow-sm transition-shadow hover:shadow-md"
               >
                 <div className="flex items-start justify-between gap-3">
                   <span className="inline-flex w-fit rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-                    {item.objetivo_codigo}
-                  </span>
-                  <span
-                    className={`inline-flex w-fit shrink-0 items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${CLASSE_STATUS[item.status]}`}
-                  >
-                    {ROTULO_STATUS[item.status]}
+                    {iniciativa.objetivoCodigo}
                   </span>
                 </div>
 
                 <h2 className="mt-3 text-sm font-semibold leading-snug">
-                  {item.objetivo_nome}
+                  {iniciativa.iniciativaNome}
                 </h2>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {/* Iniciativa: {item.iniciativa_nome} */}
-                  Meta: {item.meta}
+                <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
+                  {iniciativa.objetivoNome}
                 </p>
 
-                <div className="mt-4 flex min-w-0 items-center gap-2 rounded-lg border border-bege/30 bg-bege/5 p-3">
-                  <FileText className="h-4 w-4 shrink-0 text-bege" />
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">
-                      {item.arquivo_nome}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {/* Meta: {item.meta} */}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-auto flex items-center gap-2 pt-4">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    render={
-                      <a
-                        href={urlArquivoComprovacao(item.id)}
-                        target="_blank"
-                        rel="noreferrer"
-                      />
-                    }
-                    className="cursor-pointer"
-                  >
-                    <ExternalLink />
-                    Visualizar
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => aprovar(item)}
-                    disabled={item.status !== "analise"}
-                    className="ml-auto cursor-pointer text-green-600 hover:bg-green-600/10 hover:text-green-600"
-                  >
-                    <Check />
-                    Aprovar
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => abrirReprovacao(item)}
-                    disabled={item.status !== "analise"}
-                    className="cursor-pointer text-red-600 hover:bg-red-600/10 hover:text-red-600"
-                  >
-                    <X />
-                    Reprovar
-                  </Button>
+                <div className="mt-4 flex items-center gap-4 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <FileText className="h-3.5 w-3.5" />
+                    {iniciativa.totalComprovacoes} comprovação(ões)
+                  </span>
+                  <span>
+                    {iniciativa.totalIndicadores} indicador(es)
+                  </span>
                 </div>
               </article>
             ))}
-          </div>
+          </Masonry>
         )}
       </main>
-
-      <Dialog
-        open={reprovando !== null}
-        onOpenChange={(isOpen) => {
-          if (!isOpen) setReprovando(null);
-        }}
-      >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Reprovar comprovação</DialogTitle>
-            <DialogDescription>
-              Informe a justificativa da reprovação para{" "}
-              <strong>{reprovando?.arquivo_nome}</strong>.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="grid gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="justificativa">Justificativa</Label>
-              <Textarea
-                id="justificativa"
-                value={justificativa}
-                onChange={(event) => setJustificativa(event.target.value)}
-                placeholder="Explique o motivo da reprovação"
-                className="focus-visible:ring-0 focus-visible:border-input"
-                required
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="prazo">Prazo para reenvio (opcional)</Label>
-              <Input
-                id="prazo"
-                type="date"
-                value={prazoReenvio}
-                onChange={(event) => setPrazoReenvio(event.target.value)}
-                className="focus-visible:ring-0 focus-visible:border-input"
-              />
-            </div>
-          </div>
-
-          <DialogFooter className="border-t-0 bg-transparent">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setReprovando(null)}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="button"
-              onClick={confirmarReprovacao}
-              disabled={salvando}
-              className="cursor-pointer bg-red-600 text-white hover:bg-red-600/90"
-            >
-              {salvando ? <LoaderCircle className="animate-spin" /> : <X />}
-              Reprovar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </>
   );
 }

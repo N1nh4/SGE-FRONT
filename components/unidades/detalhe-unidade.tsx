@@ -8,7 +8,9 @@ import {
   LoaderCircle,
   Lock,
   Mail,
+  Pencil,
   Plus,
+  Trash2,
   User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -27,6 +29,8 @@ import {
   createColaborador,
   fetchColaboradores,
   fetchUnidadeById,
+  updateColaborador,
+  updateUsuarioStatus,
   type Colaborador,
   type Unidade,
 } from "@/lib/api";
@@ -40,7 +44,9 @@ export function DetalheUnidade({ unidadeId }: { unidadeId: number }) {
   const [email, setEmail] = useState("");
   const [papel, setPapel] = useState("default");
   const [senha, setSenha] = useState("");
+  const [status, setStatus] = useState(1);
   const [salvando, setSalvando] = useState(false);
+  const [colaboradorEditando, setColaboradorEditando] = useState<Colaborador | null>(null);
 
   useEffect(() => {
     fetchUnidadeById(unidadeId)
@@ -59,29 +65,64 @@ export function DetalheUnidade({ unidadeId }: { unidadeId: number }) {
   }, [unidadeId]);
 
   function abrirNovo() {
+    setColaboradorEditando(null);
     setNome("");
     setEmail("");
     setPapel("default");
     setSenha("");
+    setStatus(1);
     setOpen(true);
+  }
+
+  function abrirEdicao(col: Colaborador) {
+    setColaboradorEditando(col);
+    setNome(col.nome);
+    setEmail(col.email);
+    setPapel(col.papel);
+    setSenha("");
+    setStatus(col.status);
+    setOpen(true);
+  }
+
+  async function inativarColaborador(col: Colaborador) {
+    try {
+      await updateUsuarioStatus(col.id, 0);
+      toast.success(`${col.nome} foi inativado.`);
+      carregarColaboradores();
+    } catch {
+      toast.error("Erro ao inativar o colaborador.");
+    }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!nome.trim() || !email.trim() || !senha.trim()) return;
+    if (!nome.trim() || !email.trim()) return;
+    if (!colaboradorEditando && !senha.trim()) return;
     setSalvando(true);
     try {
-      await createColaborador(unidadeId, {
-        nome: nome.trim(),
-        email: email.trim(),
-        senha: senha.trim(),
-        papel,
-      });
-      toast.success("Colaborador adicionado com sucesso.");
+      if (colaboradorEditando) {
+        await updateColaborador(colaboradorEditando.id, {
+          nome: nome.trim(),
+          email: email.trim(),
+          ...(senha.trim() ? { senha: senha.trim() } : {}),
+          papel,
+          status,
+        });
+        toast.success("Colaborador atualizado com sucesso.");
+      } else {
+        await createColaborador(unidadeId, {
+          nome: nome.trim(),
+          email: email.trim(),
+          senha: senha.trim(),
+          papel,
+          status,
+        });
+        toast.success("Colaborador adicionado com sucesso.");
+      }
       setOpen(false);
       carregarColaboradores();
     } catch {
-      toast.error("Erro ao adicionar o colaborador.");
+      toast.error(colaboradorEditando ? "Erro ao atualizar o colaborador." : "Erro ao adicionar o colaborador.");
     } finally {
       setSalvando(false);
     }
@@ -161,6 +202,8 @@ export function DetalheUnidade({ unidadeId }: { unidadeId: number }) {
                 <th className="px-5 py-3 font-medium">Nome</th>
                 <th className="px-5 py-3 font-medium">E-mail</th>
                 <th className="px-5 py-3 font-medium">Papel</th>
+                <th className="px-5 py-3 font-medium">Status</th>
+                <th className="px-5 py-3 font-medium">Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -178,12 +221,43 @@ export function DetalheUnidade({ unidadeId }: { unidadeId: number }) {
                   <td className="px-5 py-4 align-top text-muted-foreground">
                     {col.papel.replace("_", " ")}
                   </td>
+                  <td className="px-5 py-4 align-top">
+                    <span
+                      className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
+                        col.status === 1
+                          ? "bg-green-100 text-green-700"
+                          : "bg-red-100 text-red-700"
+                      }`}
+                    >
+                      {col.status === 1 ? "Ativo" : "Inativo"}
+                    </span>
+                  </td>
+                  <td className="px-5 py-4 align-top">
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => abrirEdicao(col)}
+                        className="cursor-pointer rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        title="Editar"
+                      >
+                        <Pencil className="size-4" />
+                      </button>
+                      {col.status === 1 && (
+                        <button
+                          onClick={() => inativarColaborador(col)}
+                          className="cursor-pointer rounded p-1 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600"
+                          title="Inativar"
+                        >
+                          <Trash2 className="size-4" />
+                        </button>
+                      )}
+                    </div>
+                  </td>
                 </tr>
               ))}
               {colaboradores.length === 0 && (
                 <tr>
                   <td
-                    colSpan={3}
+                    colSpan={5}
                     className="px-5 py-10 text-center text-sm text-muted-foreground"
                   >
                     Nenhum colaborador vinculado a esta unidade.
@@ -198,9 +272,11 @@ export function DetalheUnidade({ unidadeId }: { unidadeId: number }) {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Adicionar Colaborador</DialogTitle>
+            <DialogTitle>{colaboradorEditando ? "Editar Colaborador" : "Adicionar Colaborador"}</DialogTitle>
             <DialogDescription>
-              Preencha os dados do colaborador para vinculá-lo à unidade.
+              {colaboradorEditando
+                ? "Atualize os dados do colaborador."
+                : "Preencha os dados do colaborador para vinculá-lo à unidade."}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="grid gap-4">
@@ -244,10 +320,10 @@ export function DetalheUnidade({ unidadeId }: { unidadeId: number }) {
                   type="password"
                   value={senha}
                   onChange={(event) => setSenha(event.target.value)}
-                  placeholder="Mínimo 6 caracteres"
+                  placeholder={colaboradorEditando ? "Deixe vazio para manter" : "Mínimo 6 caracteres"}
                   className="h-10 pl-9"
-                  minLength={6}
-                  required
+                  minLength={colaboradorEditando ? undefined : 6}
+                  required={!colaboradorEditando}
                 />
               </div>
             </div>
@@ -266,6 +342,26 @@ export function DetalheUnidade({ unidadeId }: { unidadeId: number }) {
               </select>
             </div>
 
+            <div className="grid gap-2">
+              <Label>Status</Label>
+              <button
+                type="button"
+                onClick={() => setStatus(status === 1 ? 0 : 1)}
+                className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full transition-colors ${
+                  status === 1 ? "bg-green-500" : "bg-gray-300"
+                }`}
+              >
+                <span
+                  className={`inline-block size-5 rounded-full bg-white shadow transition-transform ${
+                    status === 1 ? "translate-x-6" : "translate-x-1"
+                  }`}
+                />
+              </button>
+              <span className="text-xs text-muted-foreground">
+                {status === 1 ? "Ativo" : "Inativo"}
+              </span>
+            </div>
+
             <DialogFooter className="border-t-0 bg-transparent">
               <Button
                 type="button"
@@ -280,7 +376,9 @@ export function DetalheUnidade({ unidadeId }: { unidadeId: number }) {
                 className="cursor-pointer bg-bege hover:bg-bege/90"
               >
                 {salvando ? <LoaderCircle className="animate-spin" /> : null}
-                {salvando ? "Adicionando..." : "Adicionar"}
+                {salvando
+                  ? colaboradorEditando ? "Salvando..." : "Adicionando..."
+                  : colaboradorEditando ? "Salvar" : "Adicionar"}
               </Button>
             </DialogFooter>
           </form>

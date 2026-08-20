@@ -20,7 +20,7 @@ import {
   fetchComprovacoes,
   fetchPlanejamentoById,
   uploadComprovacao,
-  urlArquivoComprovacao,
+  abrirArquivoComprovacao,
   type Comprovacao,
   type Planejamento,
   type StatusComprovacao,
@@ -264,13 +264,7 @@ export function PaginaComprovacoes({
                           <Button
                             variant="ghost"
                             size="icon-sm"
-                            render={
-                              <a
-                                href={urlArquivoComprovacao(comprovacao.id)}
-                                target="_blank"
-                                rel="noreferrer"
-                              />
-                            }
+                            onClick={() => abrirArquivoComprovacao(comprovacao.id)}
                             aria-label="Visualizar comprovação"
                           >
                             <ExternalLink />

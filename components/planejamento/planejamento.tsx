@@ -37,6 +37,8 @@ import {
   type Planejamento,
   type Unidade,
 } from "@/lib/api";
+import { useAuth } from "@/context/auth-context";
+import { ROLES } from "@/lib/roles";
 
 type IndicadorForm = {
   nome: string;
@@ -64,6 +66,8 @@ function indicadorVazio(): IndicadorForm {
 
 export function Planejamento() {
   const router = useRouter();
+  const { usuario } = useAuth();
+  const podeEditar = usuario?.papel !== ROLES.DEFAULT;
   const [itens, setItens] = useState<Planejamento[]>([]);
   const [objetivos, setObjetivos] = useState<Objetivo[]>([]);
   const [unidades, setUnidades] = useState<Unidade[]>([]);
@@ -76,6 +80,7 @@ export function Planejamento() {
     indicadorVazio(),
   ]);
   const [dropdownAberto, setDropdownAberto] = useState<number | null>(null);
+  const [buscaUnidade, setBuscaUnidade] = useState("");
   const [etapaForm, setEtapaForm] = useState<1 | 2>(1);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -86,6 +91,7 @@ export function Planejamento() {
         !dropdownRef.current.contains(event.target as Node)
       ) {
         setDropdownAberto(null);
+        setBuscaUnidade("");
       }
     }
     if (dropdownAberto !== null) {
@@ -286,13 +292,15 @@ export function Planejamento() {
             Vincule iniciativas e indicadores aos objetivos estratégicos.
           </p>
         </div>
-        <Button
-          onClick={abrirNovo}
-          className="cursor-pointer bg-bege hover:bg-bege/90"
-        >
-          <Plus />
-          Adicionar Planejamento
-        </Button>
+        {podeEditar && (
+          <Button
+            onClick={abrirNovo}
+            className="cursor-pointer bg-bege hover:bg-bege/90"
+          >
+            <Plus />
+            Adicionar Planejamento
+          </Button>
+        )}
       </header>
 
       <main className="flex-1 bg-cinza-claro p-8">
@@ -304,7 +312,9 @@ export function Planejamento() {
                 <th className="px-5 py-3 font-medium">Objetivo</th>
                 <th className="px-5 py-3 font-medium">Iniciativa</th>
                 <th className="px-5 py-3 font-medium">Progresso</th>
-                <th className="px-5 py-3 text-right font-medium">Ações</th>
+                {podeEditar && (
+                  <th className="px-5 py-3 text-right font-medium">Ações</th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -338,38 +348,40 @@ export function Planejamento() {
                       </span>
                     </div>
                   </td>
-                  <td className="px-5 py-4 align-top">
-                    <div className="flex items-center justify-end gap-2">
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          abrirEdicao(item);
-                        }}
-                        className="border border-solid border-black/[.08] rounded-mds bg-white hover:bg-white/90 text-azul-escuro cursor-pointer"
-                      >
-                        <Pencil />
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setExcluindo(item);
-                        }}
-                        className="bg-red-600/90 text-white hover:bg-red-600/80 cursor-pointer"
-                      >
-                        <Trash />
-                      </Button>
-                    </div>
-                  </td>
+                  {podeEditar && (
+                    <td className="px-5 py-4 align-top">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            abrirEdicao(item);
+                          }}
+                          className="border border-solid border-black/[.08] rounded-mds bg-white hover:bg-white/90 text-azul-escuro cursor-pointer"
+                        >
+                          <Pencil />
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setExcluindo(item);
+                          }}
+                          className="bg-red-600/90 text-white hover:bg-red-600/80 cursor-pointer"
+                        >
+                          <Trash />
+                        </Button>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
               {itens.length === 0 && (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={podeEditar ? 5 : 4}
                     className="px-5 py-10 text-center text-sm text-muted-foreground"
                   >
                     Nenhum planejamento cadastrado.
@@ -403,7 +415,9 @@ export function Planejamento() {
             >
               1
             </span>
-            <span className={etapaForm === 1 ? "font-medium text-foreground" : ""}>
+            <span
+              className={etapaForm === 1 ? "font-medium text-foreground" : ""}
+            >
               Dados gerais
             </span>
             <span className="mx-1">—</span>
@@ -416,42 +430,46 @@ export function Planejamento() {
             >
               2
             </span>
-            <span className={etapaForm === 2 ? "font-medium text-foreground" : ""}>
+            <span
+              className={etapaForm === 2 ? "font-medium text-foreground" : ""}
+            >
               Indicadores
             </span>
           </div>
 
           {etapaForm === 1 && (
             <div className="grid gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="objetivo">Objetivo Estratégico</Label>
-                <select
-                  id="objetivo"
-                  value={objetivoId}
-                  onChange={(event) => setObjetivoId(event.target.value)}
-                  className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none placeholder:text-muted-foreground md:text-sm dark:bg-input/30"
-                  required
-                >
-                  <option value="" disabled>
-                    Selecione um objetivo...
-                  </option>
-                  {objetivos.map((objetivo) => (
-                    <option key={objetivo.id} value={objetivo.id}>
-                      {objetivo.nome}
+              <div className="grid grid-cols-[1fr_120px] items-end gap-3">
+                <div className="grid gap-2">
+                  <Label htmlFor="objetivo">Objetivo Estratégico</Label>
+                  <select
+                    id="objetivo"
+                    value={objetivoId}
+                    onChange={(event) => setObjetivoId(event.target.value)}
+                    className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none placeholder:text-muted-foreground md:text-sm dark:bg-input/30"
+                    required
+                  >
+                    <option value="" disabled>
+                      Selecione um objetivo...
                     </option>
-                  ))}
-                </select>
-              </div>
+                    {objetivos.map((objetivo) => (
+                      <option key={objetivo.id} value={objetivo.id}>
+                        {objetivo.nome}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-              <div className="grid gap-2">
-                <Label htmlFor="codigo">Código</Label>
-                <Input
-                  id="codigo"
-                  value={objetivoSelecionado?.codigo ?? ""}
-                  placeholder="Código do objetivo"
-                  disabled
-                  className="focus-visible:ring-0 focus-visible:border-input"
-                />
+                <div className="grid gap-2">
+                  <Label htmlFor="codigo">Código</Label>
+                  <Input
+                    id="codigo"
+                    value={objetivoSelecionado?.codigo ?? ""}
+                    placeholder="—"
+                    disabled
+                    className="focus-visible:ring-0 focus-visible:border-input"
+                  />
+                </div>
               </div>
 
               <div className="grid gap-2">
@@ -471,27 +489,12 @@ export function Planejamento() {
           {etapaForm === 2 && (
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <div className="grid max-h-[55vh] gap-4 overflow-y-auto pr-1">
-              <div className="rounded-lg border bg-muted/30 p-4">
-                <div className="mb-3 flex items-center justify-between gap-2">
-                  <Label className="text-sm font-medium">Indicadores</Label>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={adicionarIndicador}
-                    className="cursor-pointer"
-                  >
-                    <Plus />
-                    Adicionar indicador
-                  </Button>
-                </div>
-
                 <div className="space-y-4">
                   {indicadores.map((indicador, index) => (
                     <div
                       key={index}
                       id={`indicador-card-${index}`}
-                      className="rounded-lg border bg-card p-4"
+                      className="rounded-lg border p-4 bg-muted/30 mt-1"
                     >
                       <div className="mb-3 flex items-center justify-between">
                         <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -515,7 +518,7 @@ export function Planejamento() {
                           <Label htmlFor={`ind-nome-${index}`}>
                             Nome do indicador
                           </Label>
-                          <Input
+                          <Textarea
                             id={`ind-nome-${index}`}
                             value={indicador.nome}
                             onChange={(event) =>
@@ -526,14 +529,14 @@ export function Planejamento() {
                               )
                             }
                             placeholder="Ex.: NPS"
-                            className="focus-visible:ring-0 focus-visible:border-input"
+                            className="focus-visible:ring-0 focus-visible:border-input bg-white"
                             required
                           />
                         </div>
 
                         <div className="grid gap-2">
                           <Label htmlFor={`ind-meta-${index}`}>Meta</Label>
-                          <Input
+                          <Textarea
                             id={`ind-meta-${index}`}
                             value={indicador.meta}
                             onChange={(event) =>
@@ -544,13 +547,13 @@ export function Planejamento() {
                               )
                             }
                             placeholder="Ex.: acima de 80"
-                            className="focus-visible:ring-0 focus-visible:border-input"
+                            className="focus-visible:ring-0 focus-visible:border-input bg-white"
                             required
                           />
                         </div>
 
-                        <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
-                          <div className="flex items-center gap-1">
+                        <div className="rounded-lg border p-4 space-y-3 bg-white">
+                          <div className="flex items-center gap-1 ">
                             <Label>Forma de Cálculo</Label>
                           </div>
 
@@ -644,7 +647,7 @@ export function Planejamento() {
                                     )
                                   }
                                   placeholder={`Etapa ${etapaIndex + 1}`}
-                                  className="focus-visible:ring-0 focus-visible:border-input"
+                                  className="focus-visible:ring-0 focus-visible:border-input bg-white"
                                 />
                                 <Button
                                   type="button"
@@ -662,7 +665,7 @@ export function Planejamento() {
                           </div>
                         </div>
 
-                        <div className="grid gap-2">
+                        <div className="grid gap-2 ">
                           <Label htmlFor={`ind-orientacao-${index}`}>
                             Orientação para comprovação
                           </Label>
@@ -677,7 +680,7 @@ export function Planejamento() {
                               )
                             }
                             placeholder="Documento/evidência que comprova o resultado"
-                            className="focus-visible:ring-0 focus-visible:border-input"
+                            className="focus-visible:ring-0 focus-visible:border-input bg-white"
                             required
                           />
                         </div>
@@ -696,13 +699,16 @@ export function Planejamento() {
                                   event.target.value,
                                 )
                               }
-                              className="focus-visible:ring-0 focus-visible:border-input"
+                              className="focus-visible:ring-0 focus-visible:border-input bg-white"
                             />
                           </div>
 
                           <div className="grid gap-2">
                             <Label>Responsável</Label>
-                            <div ref={dropdownRef} className="relative">
+                            <div
+                              ref={dropdownRef}
+                              className="relative bg-white"
+                            >
                               <button
                                 type="button"
                                 onClick={() =>
@@ -717,19 +723,26 @@ export function Planejamento() {
                                 >
                                   {indicador.unidadeIds.length === 0
                                     ? "Selecione unidades..."
-                                    : unidades
-                                        .filter((u) =>
-                                          indicador.unidadeIds.includes(
-                                            String(u.id),
-                                          ),
-                                        )
-                                        .map((u) => u.nome)
-                                        .join(", ")}
+                                    : indicador.unidadeIds.length ===
+                                        unidades.length
+                                      ? "Todos selecionados"
+                                      : (() => {
+                                          const selecionadas = unidades
+                                            .filter((u) =>
+                                              indicador.unidadeIds.includes(
+                                                String(u.id),
+                                              ),
+                                            )
+                                            .map((u) => u.nome);
+                                          if (selecionadas.length <= 3)
+                                            return selecionadas.join(", ");
+                                          return `${selecionadas.slice(0, 3).join(", ")} +${selecionadas.length - 3}`;
+                                        })()}
                                 </span>
                                 <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
                               </button>
                               {dropdownAberto === index && (
-                                <div className="absolute z-50 mt-1 max-h-48 w-full overflow-auto rounded-lg border bg-popover shadow-md">
+                                <div className="absolute z-50 mb-1 w-full overflow-auto rounded-lg border bg-popover shadow-md bottom-full">
                                   {unidades.length === 0 && (
                                     <div className="px-2.5 py-1.5 text-sm text-muted-foreground">
                                       Nenhuma unidade cadastrada.
@@ -737,80 +750,104 @@ export function Planejamento() {
                                   )}
                                   {unidades.length > 0 && (
                                     <>
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          const todosIds = unidades.map((u) =>
-                                            String(u.id),
-                                          );
-                                          const todasSelecionadas =
-                                            indicador.unidadeIds.length ===
-                                            todosIds.length;
-                                          setIndicadores((prev) =>
-                                            prev.map((ind, i) =>
-                                              i === index
-                                                ? {
-                                                    ...ind,
-                                                    unidadeIds:
-                                                      todasSelecionadas
-                                                        ? []
-                                                        : todosIds,
-                                                  }
-                                                : ind,
-                                            ),
-                                          );
-                                        }}
-                                        className="flex w-full items-center gap-2 border-b px-2.5 py-1.5 text-left text-sm font-medium hover:bg-accent cursor-pointer"
-                                      >
-                                        <span
-                                          className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
-                                            indicador.unidadeIds.length ===
-                                              unidades.length &&
-                                            unidades.length > 0
-                                              ? "border-bege bg-bege text-white"
-                                              : "border-input"
-                                          }`}
-                                        >
-                                          {indicador.unidadeIds.length ===
-                                            unidades.length &&
-                                            unidades.length > 0 && (
-                                              <Check className="h-3 w-3" />
-                                            )}
-                                        </span>
-                                        Selecionar todos
-                                      </button>
-                                      {unidades.map((unidade) => {
-                                        const marcada =
-                                          indicador.unidadeIds.includes(
-                                            String(unidade.id),
-                                          );
-                                        return (
+                                      <div className="border-b px-2.5 py-1.5">
+                                        <input
+                                          type="text"
+                                          value={buscaUnidade}
+                                          onChange={(e) =>
+                                            setBuscaUnidade(e.target.value)
+                                          }
+                                          placeholder="Buscar unidade..."
+                                          className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                                          autoFocus
+                                        />
+                                      </div>
+                                      <div className="max-h-40 overflow-auto">
+                                        {buscaUnidade === "" && (
                                           <button
-                                            key={unidade.id}
                                             type="button"
-                                            onClick={() =>
-                                              toggleUnidade(
-                                                index,
-                                                String(unidade.id),
-                                              )
-                                            }
-                                            className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-sm hover:bg-accent cursor-pointer"
+                                            onClick={() => {
+                                              const todosIds = unidades.map(
+                                                (u) => String(u.id),
+                                              );
+                                              const todasSelecionadas =
+                                                indicador.unidadeIds.length ===
+                                                todosIds.length;
+                                              setIndicadores((prev) =>
+                                                prev.map((ind, i) =>
+                                                  i === index
+                                                    ? {
+                                                        ...ind,
+                                                        unidadeIds:
+                                                          todasSelecionadas
+                                                            ? []
+                                                            : todosIds,
+                                                      }
+                                                    : ind,
+                                                ),
+                                              );
+                                            }}
+                                            className="flex w-full items-center gap-2 border-b px-2.5 py-1.5 text-left text-sm font-medium hover:bg-accent cursor-pointer"
                                           >
                                             <span
                                               className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
-                                                marcada
+                                                indicador.unidadeIds.length ===
+                                                  unidades.length &&
+                                                unidades.length > 0
                                                   ? "border-bege bg-bege text-white"
                                                   : "border-input"
                                               }`}
                                             >
-                                              {marcada && (
-                                                <Check className="h-3 w-3" />
-                                              )}
+                                              {indicador.unidadeIds.length ===
+                                                unidades.length &&
+                                                unidades.length > 0 && (
+                                                  <Check className="h-3 w-3" />
+                                                )}
                                             </span>
-                                            {unidade.nome}
+                                            Selecionar todos
                                           </button>
-                                        );
-                                      })}
+                                        )}
+                                        {unidades
+                                          .filter((u) =>
+                                            u.nome
+                                              .toLowerCase()
+                                              .includes(
+                                                buscaUnidade.toLowerCase(),
+                                              ),
+                                          )
+                                          .map((unidade) => {
+                                            const marcada =
+                                              indicador.unidadeIds.includes(
+                                                String(unidade.id),
+                                              );
+                                            return (
+                                              <button
+                                                key={unidade.id}
+                                                type="button"
+                                                onClick={() =>
+                                                  toggleUnidade(
+                                                    index,
+                                                    String(unidade.id),
+                                                  )
+                                                }
+                                                className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-sm hover:bg-accent cursor-pointer"
+                                              >
+                                                <span
+                                                  className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                                                    marcada
+                                                      ? "border-bege bg-bege text-white"
+                                                      : "border-input"
+                                                  }`}
+                                                >
+                                                  {marcada && (
+                                                    <Check className="h-3 w-3" />
+                                                  )}
+                                                </span>
+                                                {unidade.nome}
+                                              </button>
+                                            );
+                                          })}
+                                      </div>
                                     </>
                                   )}
                                 </div>
@@ -822,8 +859,18 @@ export function Planejamento() {
                     </div>
                   ))}
                 </div>
+
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={adicionarIndicador}
+                  className="cursor-pointer bg-bege text-white hover:bg-bege/90 hover:text-white"
+                >
+                  <Plus />
+                  Adicionar indicador
+                </Button>
               </div>
-            </div>
               <DialogFooter className="border-t-0 bg-transparent">
                 <Button
                   type="button"
@@ -849,6 +896,7 @@ export function Planejamento() {
                 variant="outline"
                 onClick={() => {
                   setDropdownAberto(null);
+                  setBuscaUnidade("");
                   setOpen(false);
                 }}
               >
