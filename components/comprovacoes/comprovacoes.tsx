@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Eye } from "lucide-react";
+import { Bell, Search, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -175,8 +175,10 @@ export function Comprovacoes() {
     return linhas.filter((linha) => {
       const matchBusca =
         busca === "" ||
-        linha.indicador.nome.toLowerCase().includes(busca.toLowerCase()) ||
-        linha.iniciativa.toLowerCase().includes(busca.toLowerCase()) ||
+        linha.indicador.meta.toLowerCase().includes(busca.toLowerCase()) ||
+        linha.indicador.orientacao
+          .toLowerCase()
+          .includes(busca.toLowerCase()) ||
         linha.responsavel.toLowerCase().includes(busca.toLowerCase());
 
       if (!matchBusca) return false;
@@ -200,15 +202,22 @@ export function Comprovacoes() {
 
   return (
     <>
-      <header className="flex items-center justify-between gap-4 border-b px-8 py-6">
-        <div>
+      <header className="flex items-center justify-between gap-4 border-b px-8 py-6 h-16">
+        <div className="flex ">
           <h1 className="text-2xl font-semibold tracking-tight">
             Comprovações
           </h1>
-          <p className="text-sm text-muted-foreground">
+          {/* <p className="text-sm text-muted-foreground">
             Acompanhe o status das comprovações de cada meta.
-          </p>
+          </p> */}
         </div>
+        <Button
+          variant="outline"
+          size="icon"
+          className="cursor-pointer"
+        >
+          <Bell className="h-5 w-5" />
+        </Button>
       </header>
 
       <main className="flex-1 bg-cinza-claro p-8">
@@ -264,7 +273,7 @@ export function Comprovacoes() {
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Buscar meta, iniciativa..."
+              placeholder="Buscar meta, orientação..."
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
               className="pl-8 w-64 bg-white"
@@ -277,8 +286,8 @@ export function Comprovacoes() {
             <thead>
               <tr className="border-b bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <th className="px-5 py-3 font-medium">Código</th>
-                <th className="px-5 py-3 font-medium">Iniciativa</th>
                 <th className="px-5 py-3 font-medium">Meta</th>
+                <th className="px-5 py-3 font-medium">Orientação</th>
                 <th className="px-5 py-3 font-medium">Responsável</th>
                 <th className="px-5 py-3 font-medium">Status</th>
                 <th className="px-5 py-3 text-right font-medium">Ações</th>
@@ -298,11 +307,11 @@ export function Comprovacoes() {
                       {linha.objetivo?.codigo ?? "—"}
                     </span>
                   </td>
-                  <td className="px-5 py-4 align-top text-muted-foreground">
-                    {linha.iniciativa}
-                  </td>
                   <td className="px-5 py-4 align-top font-medium">
-                    {linha.indicador.nome}
+                    {linha.indicador.meta}
+                  </td>
+                  <td className="px-5 py-4 align-top text-muted-foreground">
+                    {linha.indicador.orientacao || "—"}
                   </td>
                   <td className="px-5 py-4 align-top text-muted-foreground">
                     {linha.responsavel}

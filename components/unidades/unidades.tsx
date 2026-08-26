@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import {
+  Bell,
   CalendarDays,
   Eye,
   LoaderCircle,
@@ -65,7 +66,8 @@ export function Unidades() {
         const promises = lista.map((u) =>
           fetchColaboradores(u.id)
             .then((cols) => {
-              if (ativo) setContagens((prev) => ({ ...prev, [u.id]: cols.length }));
+              if (ativo)
+                setContagens((prev) => ({ ...prev, [u.id]: cols.length }));
             })
             .catch(() => {}),
         );
@@ -76,7 +78,9 @@ export function Unidades() {
       .catch(() => {
         if (ativo) setCarregando(false);
       });
-    return () => { ativo = false; };
+    return () => {
+      ativo = false;
+    };
   }, []);
 
   function abrirNovo() {
@@ -133,23 +137,25 @@ export function Unidades() {
 
   return (
     <>
-      <header className="flex items-center justify-between gap-4 border-b px-8 py-6">
+      <header className="flex items-center justify-between gap-4 border-b px-8 py-6 h-16">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Unidades</h1>
-          <p className="text-sm text-muted-foreground">
-            Gerencie as unidades da organização.
-          </p>
         </div>
-        <Button
-          onClick={abrirNovo}
-          className="cursor-pointer bg-bege hover:bg-bege/90"
-        >
-          <Plus />
-          Adicionar Unidade
+        <Button variant="outline" size="icon" className="cursor-pointer">
+          <Bell className="h-5 w-5" />
         </Button>
       </header>
 
-      <main className="flex-1 bg-cinza-claro p-8">
+      <main className="flex-1 bg-cinza-claro px-8 pt-4 pb-8">
+        <div className="mb-4 flex justify-end">
+          <Button
+            onClick={abrirNovo}
+            className="cursor-pointer bg-bege hover:bg-bege/90"
+          >
+            <Plus />
+            Adicionar Unidade
+          </Button>
+        </div>
         {carregando ? (
           <div className="flex items-center justify-center py-12">
             <LoaderCircle className="animate-spin size-6 text-muted-foreground" />
@@ -180,7 +186,7 @@ export function Unidades() {
                 <div className="mt-auto flex items-center justify-end gap-2 pt-4">
                   <Button
                     type="button"
-                    size="sm"
+                    size="icon"
                     render={<Link href={`/unidades/${unidade.id}`} />}
                     className="border border-solid border-black/[.08] rounded-mds bg-white hover:bg-white/90 text-azul-escuro cursor-pointer"
                     aria-label="Visualizar unidade"
@@ -189,7 +195,7 @@ export function Unidades() {
                   </Button>
                   <Button
                     type="button"
-                    size="sm"
+                    size="icon"
                     onClick={() => abrirEdicao(unidade)}
                     className="border border-solid border-black/[.08] rounded-mds bg-white hover:bg-white/90 text-azul-escuro cursor-pointer"
                   >
@@ -197,11 +203,11 @@ export function Unidades() {
                   </Button>
                   <Button
                     type="button"
-                    size="sm"
+                    size="icon"
                     onClick={() => setExcluindo(unidade)}
                     className="bg-red-600/90 text-white hover:bg-red-600/80 cursor-pointer"
                   >
-                    <Trash />
+                    <Trash className="h-5 w-5" />
                   </Button>
                 </div>
               </article>

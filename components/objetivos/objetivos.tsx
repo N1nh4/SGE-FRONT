@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { CalendarDays, Pencil, Plus, Trash } from "lucide-react";
+import { Bell, CalendarDays, Pencil, Plus, Trash } from "lucide-react";
 import Masonry from "react-masonry-css";
 import { Button } from "@/components/ui/button";
 import {
@@ -49,7 +49,6 @@ export function Objetivos() {
   const [excluindo, setExcluindo] = useState<Objetivo | null>(null);
   const [codigo, setCodigo] = useState("");
   const [nome, setNome] = useState("");
-  const [descricao, setDescricao] = useState("");
   const [ppa, setPpa] = useState("");
   const [loa, setLoa] = useState("");
 
@@ -63,7 +62,6 @@ export function Objetivos() {
     setEditando(null);
     setCodigo("");
     setNome("");
-    setDescricao("");
     setPpa("");
     setLoa("");
     setOpen(true);
@@ -73,7 +71,6 @@ export function Objetivos() {
     setEditando(objetivo);
     setCodigo(objetivo.codigo);
     setNome(objetivo.nome);
-    setDescricao(objetivo.descricao);
     setPpa(objetivo.ppa);
     setLoa(objetivo.loa);
     setOpen(true);
@@ -81,7 +78,7 @@ export function Objetivos() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const dados = { codigo, nome, descricao, ppa, loa };
+    const dados = { codigo, nome, ppa, loa };
 
     if (editando) {
       try {
@@ -105,7 +102,6 @@ export function Objetivos() {
 
     setCodigo("");
     setNome("");
-    setDescricao("");
     setPpa("");
     setLoa("");
     setEditando(null);
@@ -127,25 +123,27 @@ export function Objetivos() {
 
   return (
     <>
-      <header className="flex items-center justify-between gap-4 border-b px-8 py-6">
+      <header className="flex items-center justify-between gap-4 border-b px-8 py-6 h-16">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">
             Objetivos Estratégicos
           </h1>
-          <p className="text-sm text-muted-foreground">
-            Gerencie os objetivos estratégicos da organização.
-          </p>
         </div>
-        <Button
-          onClick={abrirNovo}
-          className="cursor-pointer bg-bege hover:bg-bege/90"
-        >
-          <Plus />
-          Adicionar Objetivo
+        <Button variant="outline" size="icon" className="cursor-pointer">
+          <Bell className="h-5 w-5" />
         </Button>
       </header>
 
-      <main className="flex-1 bg-cinza-claro p-8">
+      <main className="flex-1 bg-cinza-claro px-8 pt-4 pb-8">
+        <div className="mb-4 flex justify-end">
+          <Button
+            onClick={abrirNovo}
+            className="cursor-pointer bg-bege hover:bg-bege/90"
+          >
+            <Plus />
+            Adicionar Objetivo
+          </Button>
+        </div>
         <Masonry
           breakpointCols={breakpointColumns}
           className="flex w-auto -ml-4"
@@ -162,9 +160,6 @@ export function Objetivos() {
               <h2 className="mt-3 text-lg font-semibold leading-snug">
                 {objetivo.nome}
               </h2>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                {objetivo.descricao}
-              </p>
               <div className="mt-3 flex flex-wrap gap-2 text-xs">
                 <span className="border border-solid border-black/[.08] inline-flex w-fit rounded-sm bg-muted px-2.5 py-0.5 font-medium text-muted-foreground">
                   PPA: {objetivo.ppa}
@@ -182,7 +177,7 @@ export function Objetivos() {
                 <div className="flex items-center gap-2">
                   <Button
                     type="button"
-                    size="sm"
+                    size="icon"
                     onClick={() => abrirEdicao(objetivo)}
                     className="border border-solid border-black/[.08] rounded-mds bg-white hover:bg-white/90 text-azul-escuro cursor-pointer"
                   >
@@ -190,7 +185,7 @@ export function Objetivos() {
                   </Button>
                   <Button
                     type="button"
-                    size="sm"
+                    size="icon"
                     onClick={() => setExcluindo(objetivo)}
                     className="bg-red-600/90 text-white hover:bg-red-600/80 cursor-pointer"
                   >
@@ -256,18 +251,6 @@ export function Objetivos() {
                 value={loa}
                 onChange={(event) => setLoa(event.target.value)}
                 placeholder="LOA"
-                className="focus-visible:ring-0 focus-visible:border-input"
-                required
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="descricao">Descrição</Label>
-              <Textarea
-                id="descricao"
-                value={descricao}
-                onChange={(event) => setDescricao(event.target.value)}
-                placeholder="Descreva o objetivo estratégico..."
                 className="focus-visible:ring-0 focus-visible:border-input"
                 required
               />

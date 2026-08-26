@@ -2,7 +2,15 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Check, ChevronDown, Pencil, Plus, Trash } from "lucide-react";
+import {
+  Bell,
+  Check,
+  ChevronDown,
+  FileDown,
+  Pencil,
+  Plus,
+  Trash,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -38,7 +46,7 @@ import {
   type Unidade,
 } from "@/lib/api";
 import { useAuth } from "@/context/auth-context";
-import { ROLES } from "@/lib/roles";
+import { gerarRelatorioPlanejamento } from "@/lib/report";
 
 type IndicadorForm = {
   nome: string;
@@ -67,7 +75,18 @@ function indicadorVazio(): IndicadorForm {
 export function Planejamento() {
   const router = useRouter();
   const { usuario } = useAuth();
-  const podeEditar = usuario?.papel !== ROLES.DEFAULT;
+  const podeCriar =
+    usuario?.paginas?.some(
+      (p) => p.chave === "/planejamento" && p.acoes.includes("criar"),
+    ) ?? false;
+  const podeEditar =
+    usuario?.paginas?.some(
+      (p) => p.chave === "/planejamento" && p.acoes.includes("editar"),
+    ) ?? false;
+  const podeExcluir =
+    usuario?.paginas?.some(
+      (p) => p.chave === "/planejamento" && p.acoes.includes("excluir"),
+    ) ?? false;
   const [itens, setItens] = useState<Planejamento[]>([]);
   const [objetivos, setObjetivos] = useState<Objetivo[]>([]);
   const [unidades, setUnidades] = useState<Unidade[]>([]);
@@ -283,27 +302,39 @@ export function Planejamento() {
 
   return (
     <>
-      <header className="flex items-center justify-between gap-4 border-b px-8 py-6">
+      <header className="flex items-center justify-between gap-4 border-b px-8 py-6 h-16">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">
             Planejamento
           </h1>
-          <p className="text-sm text-muted-foreground">
-            Vincule iniciativas e indicadores aos objetivos estratégicos.
-          </p>
         </div>
-        {podeEditar && (
-          <Button
-            onClick={abrirNovo}
-            className="cursor-pointer bg-bege hover:bg-bege/90"
-          >
-            <Plus />
-            Adicionar Planejamento
-          </Button>
-        )}
+        <Button variant="outline" size="icon" className="cursor-pointer">
+          <Bell className="h-5 w-5" />
+        </Button>
       </header>
 
-      <main className="flex-1 bg-cinza-claro p-8">
+      <main className="flex-1 bg-cinza-claro px-8 pt-4 pb-8">
+        <div className="mb-4 flex items-center justify-end gap-2">
+          {(podeCriar || podeEditar) && (
+            <Button
+              onClick={() => gerarRelatorioPlanejamento(itens)}
+              variant="outline"
+              className="cursor-pointer"
+            >
+              <FileDown />
+              Gerar Relatório
+            </Button>
+          )}
+          {podeCriar && (
+            <Button
+              onClick={abrirNovo}
+              className="cursor-pointer bg-bege hover:bg-bege/90"
+            >
+              <Plus />
+              Adicionar Planejamento
+            </Button>
+          )}
+        </div>
         <div className="overflow-x-auto rounded-xl border bg-card">
           <table className="w-full text-sm">
             <thead>
@@ -348,31 +379,35 @@ export function Planejamento() {
                       </span>
                     </div>
                   </td>
-                  {podeEditar && (
+                  {(podeEditar || podeExcluir) && (
                     <td className="px-5 py-4 align-top">
                       <div className="flex items-center justify-end gap-2">
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            abrirEdicao(item);
-                          }}
-                          className="border border-solid border-black/[.08] rounded-mds bg-white hover:bg-white/90 text-azul-escuro cursor-pointer"
-                        >
-                          <Pencil />
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setExcluindo(item);
-                          }}
-                          className="bg-red-600/90 text-white hover:bg-red-600/80 cursor-pointer"
-                        >
-                          <Trash />
-                        </Button>
+                        {(podeEditar || podeExcluir) && (
+                          <Button
+                            type="button"
+                            size="icon"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              abrirEdicao(item);
+                            }}
+                            className="border border-solid border-black/[.08] rounded-mds bg-white hover:bg-white/90 text-azul-escuro cursor-pointer"
+                          >
+                            <Pencil />
+                          </Button>
+                        )}
+                        {podeExcluir && (
+                          <Button
+                            type="button"
+                            size="icon"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setExcluindo(item);
+                            }}
+                            className="bg-red-600/90 text-white hover:bg-red-600/80 cursor-pointer"
+                          >
+                            <Trash />
+                          </Button>
+                        )}
                       </div>
                     </td>
                   )}
@@ -381,7 +416,7 @@ export function Planejamento() {
               {itens.length === 0 && (
                 <tr>
                   <td
-                    colSpan={podeEditar ? 5 : 4}
+                    colSpan={podeEditar || podeExcluir ? 5 : 4}
                     className="px-5 py-10 text-center text-sm text-muted-foreground"
                   >
                     Nenhum planejamento cadastrado.

@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
+  Bell,
   Building2,
   LoaderCircle,
   Lock,
@@ -28,16 +29,19 @@ import { toast } from "sonner";
 import {
   createColaborador,
   fetchColaboradores,
+  fetchPerfis,
   fetchUnidadeById,
   updateColaborador,
   updateUsuarioStatus,
   type Colaborador,
+  type Perfil,
   type Unidade,
 } from "@/lib/api";
 
 export function DetalheUnidade({ unidadeId }: { unidadeId: number }) {
   const [unidade, setUnidade] = useState<Unidade | null>(null);
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
+  const [perfis, setPerfis] = useState<Perfil[]>([]);
   const [erro, setErro] = useState(false);
   const [open, setOpen] = useState(false);
   const [nome, setNome] = useState("");
@@ -52,6 +56,7 @@ export function DetalheUnidade({ unidadeId }: { unidadeId: number }) {
     fetchUnidadeById(unidadeId)
       .then(setUnidade)
       .catch(() => setErro(true));
+    fetchPerfis().then(setPerfis).catch(() => {});
   }, [unidadeId]);
 
   const carregarColaboradores = () => {
@@ -139,7 +144,7 @@ export function DetalheUnidade({ unidadeId }: { unidadeId: number }) {
             </p>
           </div>
         </header>
-        <main className="flex-1 bg-cinza-claro p-8">
+      <main className="flex-1 bg-cinza-claro px-8 pt-4 pb-8">
           <div className="rounded-xl border bg-card p-10 text-center text-sm text-muted-foreground">
             Unidade não encontrada ou backend indisponível.
           </div>
@@ -170,15 +175,24 @@ export function DetalheUnidade({ unidadeId }: { unidadeId: number }) {
           </div>
         </div>
         <Button
-          onClick={abrirNovo}
-          className="cursor-pointer bg-bege hover:bg-bege/90"
+          variant="outline"
+          size="icon"
+          className="cursor-pointer"
         >
-          <Plus />
-          Adicionar Colaborador
+          <Bell className="h-5 w-5" />
         </Button>
       </header>
 
       <main className="flex-1 bg-cinza-claro p-8">
+        <div className="mb-4 flex justify-end">
+          <Button
+            onClick={abrirNovo}
+            className="cursor-pointer bg-bege hover:bg-bege/90"
+          >
+            <Plus />
+            Adicionar Colaborador
+          </Button>
+        </div>
         <div className="flex items-center gap-3 rounded-xl border bg-card p-5">
           <div className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-azul-escuro text-white">
             <Building2 className="size-5" />
@@ -336,9 +350,11 @@ export function DetalheUnidade({ unidadeId }: { unidadeId: number }) {
                 onChange={(event) => setPapel(event.target.value)}
                 className="h-10 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30"
               >
-                <option value="default">Default</option>
-                <option value="adm">Adm</option>
-                <option value="master">Master</option>
+                {perfis.map((perfil) => (
+                  <option key={perfil.id} value={perfil.chave}>
+                    {perfil.nome}
+                  </option>
+                ))}
               </select>
             </div>
 

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
+  Bell,
   ExternalLink,
   FileText,
   LoaderCircle,
@@ -138,7 +139,7 @@ export function PaginaComprovacoes({
   if (erro) {
     return (
       <>
-        <header className="flex items-center justify-between gap-4 border-b px-8 py-6">
+        <header className="flex items-center justify-between gap-4 border-b px-8 py-6 h-16">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">
               Comprovações
@@ -185,6 +186,13 @@ export function PaginaComprovacoes({
             <p className="text-sm text-muted-foreground">{indicador.nome}</p>
           </div>
         </div>
+        <Button
+          variant="outline"
+          size="icon"
+          className="cursor-pointer"
+        >
+          <Bell className="h-5 w-5" />
+        </Button>
       </header>
 
       <main className="flex flex-1 flex-col gap-6 bg-cinza-claro p-8">

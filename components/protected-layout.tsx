@@ -6,14 +6,26 @@ import { LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/auth-context";
 import { Sidebar } from "@/components/sidebar";
-import { canAccessRoute, getFirstAllowedRoute } from "@/lib/roles";
+import { SelecaoUnidade } from "@/components/selecao-unidade/selecao-unidade";
+import type { PaginaComAcoes } from "@/lib/api";
+
+function canAccessPages(paginas: PaginaComAcoes[] | undefined, pathname: string): boolean {
+  if (!paginas || paginas.length === 0) return false;
+  return paginas.some(
+    (p) => pathname === p.chave || pathname.startsWith(p.chave + "/"),
+  );
+}
+
+function getFirstAllowedPage(paginas: PaginaComAcoes[] | undefined): string {
+  return paginas?.[0]?.chave ?? "/indicadores";
+}
 
 export function ProtectedLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { usuario, carregando } = useAuth();
+  const { usuario, unidades, unidadeId, carregando } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -26,9 +38,9 @@ export function ProtectedLayout({
       return () => clearTimeout(timeout);
     }
 
-    if (!canAccessRoute(usuario.papel, pathname)) {
+    if (!canAccessPages(usuario.paginas, pathname)) {
       toast.error("Você não tem permissão para acessar esta página.");
-      const destino = getFirstAllowedRoute(usuario.papel);
+      const destino = getFirstAllowedPage(usuario.paginas);
       const timeout = setTimeout(() => router.replace(destino), 1500);
       return () => clearTimeout(timeout);
     }
@@ -44,7 +56,11 @@ export function ProtectedLayout({
 
   if (!usuario) return null;
 
-  if (!canAccessRoute(usuario.papel, pathname)) return null;
+  if (unidades.length > 1 && !unidadeId) {
+    return <SelecaoUnidade />;
+  }
+
+  if (!canAccessPages(usuario.paginas, pathname)) return null;
 
   return (
     <div className="flex min-h-screen">

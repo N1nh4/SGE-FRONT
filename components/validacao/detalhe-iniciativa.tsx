@@ -58,6 +58,9 @@ type ComprovacaoDetalhe = {
   indicadorId: number;
   indicadorNome: string;
   meta: string;
+  rotulo_x: string;
+  rotulo_y: string;
+  orientacao: string;
 };
 
 const ROTULO_STATUS: Record<StatusComprovacao, string> = {
@@ -129,6 +132,9 @@ export function DetalheIniciativa({
               indicadorId: indicador.id,
               indicadorNome: indicador.nome,
               meta: indicador.meta,
+              rotulo_x: indicador.rotulo_x,
+              rotulo_y: indicador.rotulo_y,
+              orientacao: indicador.orientacao,
             });
           }
         }
@@ -168,7 +174,7 @@ export function DetalheIniciativa({
       return;
     }
     carregarPdf(itemAtual.id);
-  }, [itemAtual, carregarPdf]);
+  }, [itemAtual?.id, carregarPdf]);
 
   useEffect(() => {
     return () => {
@@ -276,6 +282,7 @@ export function DetalheIniciativa({
                   </div>
                 ) : pdfUrl ? (
                   <iframe
+                    key={pdfUrl}
                     src={pdfUrl}
                     className="h-full w-full rounded-lg border"
                     title={itemAtual.arquivo_nome}
@@ -360,16 +367,27 @@ export function DetalheIniciativa({
 
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Indicador
+                    Meta
                   </p>
-                  <p className="mt-1 text-sm">{itemAtual.indicadorNome}</p>
+                  <p className="mt-1 text-sm">{itemAtual.meta}</p>
                 </div>
 
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Meta
+                    Fórmula de Cálculo
                   </p>
-                  <p className="mt-1 text-sm">{itemAtual.meta}</p>
+                  <p className="mt-1 text-sm">
+                    ({itemAtual.rotulo_x || "X"} / {itemAtual.rotulo_y || "Y"}) x 100
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Orientações para Comprovação
+                  </p>
+                  <p className="mt-1 text-sm">
+                    {itemAtual.orientacao || "—"}
+                  </p>
                 </div>
 
                 <div>

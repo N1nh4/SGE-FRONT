@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
+import { selecionarUnidade, type UnidadeLogin, type PaginaComAcoes } from "@/lib/api";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -18,15 +19,18 @@ export type Usuario = {
   nome: string;
   email: string;
   papel: string;
-  unidade_id: number | null;
   status: number;
+  paginas: PaginaComAcoes[];
 };
 
 type AuthContextValue = {
   usuario: Usuario | null;
   token: string | null;
+  unidadeId: number | null;
+  unidades: UnidadeLogin[];
   carregando: boolean;
   login: (email: string, senha: string) => Promise<void>;
+  selecionarUnidade: (unidadeId: number) => Promise<void>;
   logout: () => void;
 };
 
@@ -35,6 +39,8 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const [unidadeId, setUnidadeId] = useState<number | null>(null);
+  const [unidades, setUnidades] = useState<UnidadeLogin[]>([]);
   const [carregando, setCarregando] = useState(true);
   const router = useRouter();
 
@@ -45,9 +51,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const parsed = JSON.parse(salvo) as {
           token: string;
           usuario: Usuario;
+          unidadeId?: number;
         };
         setToken(parsed.token);
-        setUsuario(parsed.usuario);
+        setUsuario({ ...parsed.usuario, paginas: parsed.usuario.paginas ?? [] });
+        if (parsed.unidadeId) setUnidadeId(parsed.unidadeId);
       } catch {
         localStorage.removeItem("auth");
       }
@@ -68,11 +76,82 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       const dados = (await res.json()) as {
         token: string;
-        usuario: Usuario;
+        usuario: Omit<Usuario, "paginas">;
+        unidades: UnidadeLogin[];
+        paginas: PaginaComAcoes[];
       };
-      localStorage.setItem("auth", JSON.stringify(dados));
+
       setToken(dados.token);
-      setUsuario(dados.usuario);
+      setUnidades(dados.unidades);
+
+      if (dados.unidades.length === 1) {
+        const u = dados.unidades[0];
+        const usuarioCompleto: Usuario = {
+          ...dados.usuario,
+          papel: u.papel,
+          paginas: dados.paginas,
+        };
+        localStorage.setItem(
+          "auth",
+          JSON.stringify({
+            token: dados.token,
+            usuario: usuarioCompleto,
+            unidadeId: u.id,
+          }),
+        );
+        setUsuario(usuarioCompleto);
+        setUnidadeId(u.id);
+        router.push("/indicadores");
+      } else if (dados.unidades.length === 0) {
+        const usuarioCompleto: Usuario = {
+          ...dados.usuario,
+          paginas: dados.paginas,
+        };
+        localStorage.setItem(
+          "auth",
+          JSON.stringify({ token: dados.token, usuario: usuarioCompleto }),
+        );
+        setUsuario(usuarioCompleto);
+        router.push("/indicadores");
+      } else {
+        const usuarioBase: Usuario = {
+          ...dados.usuario,
+          paginas: [],
+        };
+        localStorage.setItem(
+          "auth",
+          JSON.stringify({ token: dados.token, usuario: usuarioBase }),
+        );
+        setUsuario(usuarioBase);
+      }
+    },
+    [router],
+  );
+
+  const handleSelecionarUnidade = useCallback(
+    async (novaUnidadeId: number) => {
+      const resultado = await selecionarUnidade(novaUnidadeId);
+
+      const usuarioCompleto: Usuario = {
+        id: resultado.usuario.id,
+        nome: resultado.usuario.nome,
+        email: resultado.usuario.email,
+        papel: resultado.papel,
+        status: resultado.usuario.status,
+        paginas: resultado.paginas,
+      };
+
+      localStorage.setItem(
+        "auth",
+        JSON.stringify({
+          token: resultado.token,
+          usuario: usuarioCompleto,
+          unidadeId: novaUnidadeId,
+        }),
+      );
+      setToken(resultado.token);
+      setUsuario(usuarioCompleto);
+      setUnidadeId(novaUnidadeId);
       router.push("/indicadores");
     },
     [router],
@@ -82,12 +161,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("auth");
     setToken(null);
     setUsuario(null);
+    setUnidadeId(null);
+    setUnidades([]);
     router.push("/");
   }, [router]);
 
   const value = useMemo(
-    () => ({ usuario, token, carregando, login, logout }),
-    [usuario, token, carregando, login, logout],
+    () => ({
+      usuario,
+      token,
+      unidadeId,
+      unidades,
+      carregando,
+      login,
+      selecionarUnidade: handleSelecionarUnidade,
+      logout,
+    }),
+    [usuario, token, unidadeId, unidades, carregando, login, handleSelecionarUnidade, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

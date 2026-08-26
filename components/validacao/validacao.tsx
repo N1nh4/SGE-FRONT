@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Building2, CalendarRange, ClipboardCheck } from "lucide-react";
+import { Bell, Building2, CalendarRange, ClipboardCheck } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { fetchUnidades, type Unidade } from "@/lib/api";
 
 const MESES = [
@@ -36,16 +37,23 @@ export function Validacao() {
 
   return (
     <>
-      <header className="flex items-center justify-between gap-4 border-b px-8 py-6">
+      <header className="flex items-center justify-between gap-4 border-b px-8 py-6 h-16">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">
             Validação de Comprovações
           </h1>
-          <p className="text-sm text-muted-foreground">
+          {/* <p className="text-sm text-muted-foreground">
             Selecione o período e a unidade para validar as comprovações
             enviadas.
-          </p>
+          </p> */}
         </div>
+        <Button
+          variant="outline"
+          size="icon"
+          className="cursor-pointer"
+        >
+          <Bell className="h-5 w-5" />
+        </Button>
       </header>
 
       <main className="flex flex-1 flex-col gap-6 bg-cinza-claro p-8">

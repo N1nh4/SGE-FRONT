@@ -5,8 +5,14 @@ function authHeaders(): Record<string, string> {
   const salvo = localStorage.getItem("auth");
   if (!salvo) return {};
   try {
-    const { token } = JSON.parse(salvo) as { token: string };
-    return token ? { Authorization: `Bearer ${token}` } : {};
+    const parsed = JSON.parse(salvo) as {
+      token: string;
+      unidadeId?: number;
+    };
+    const headers: Record<string, string> = {};
+    if (parsed.token) headers.Authorization = `Bearer ${parsed.token}`;
+    if (parsed.unidadeId) headers["X-Unidade-Id"] = String(parsed.unidadeId);
+    return headers;
   } catch {
     return {};
   }
@@ -35,7 +41,6 @@ export type Objetivo = {
   id: number;
   codigo: string;
   nome: string;
-  descricao: string;
   ppa: string;
   loa: string;
 };
@@ -43,7 +48,6 @@ export type Objetivo = {
 export type NovoObjetivo = {
   codigo: string;
   nome: string;
-  descricao: string;
   ppa: string;
   loa: string;
 };
@@ -83,7 +87,6 @@ export type ObjetivoResumo = {
   id: number;
   codigo: string;
   nome: string;
-  descricao: string;
   ppa: string;
   loa: string;
 };
@@ -318,11 +321,14 @@ export type Colaborador = {
   nome: string;
   email: string;
   papel: string;
-  unidade_id: number | null;
   status: number;
   created_at: string;
   updated_at: string;
 };
+
+export async function fetchUsuarios(): Promise<Colaborador[]> {
+  return (await apiFetch<Colaborador[]>("/api/usuarios")) ?? [];
+}
 
 export type NovoColaborador = {
   nome: string;
@@ -379,4 +385,95 @@ export async function updateColaborador(
   });
   if (!atualizado) throw new Error("Resposta vazia ao atualizar colaborador");
   return atualizado;
+}
+
+export type UnidadeLogin = {
+  id: number;
+  nome: string;
+  papel: string;
+};
+
+export async function selecionarUnidade(
+  unidadeId: number,
+): Promise<{ token: string; usuario: { id: number; nome: string; email: string; papel: string; status: number }; unidade_id: number; papel: string; paginas: PaginaComAcoes[] }> {
+  const salvo = localStorage.getItem("auth");
+  if (!salvo) throw new Error("Não autenticado");
+  const { token } = JSON.parse(salvo) as { token: string };
+
+  const resultado = await apiFetch<{
+    token: string;
+    usuario: { id: number; nome: string; email: string; papel: string; status: number };
+    unidade_id: number;
+    papel: string;
+    paginas: PaginaComAcoes[];
+  }>("/api/auth/selecionar-unidade", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ unidade_id: unidadeId }),
+  });
+  if (!resultado) throw new Error("Erro ao selecionar unidade");
+  return resultado;
+}
+
+export type Pagina = {
+  id: number;
+  chave: string;
+  nome: string;
+};
+
+export type PaginaComAcoes = {
+  chave: string;
+  acoes: string[];
+};
+
+export type Perfil = {
+  id: number;
+  chave: string;
+  nome: string;
+  paginas: PaginaComAcoes[];
+};
+
+export async function fetchPaginas(): Promise<Pagina[]> {
+  return (await apiFetch<Pagina[]>("/api/paginas")) ?? [];
+}
+
+export async function fetchPerfis(): Promise<Perfil[]> {
+  return (await apiFetch<Perfil[]>("/api/paginas/perfis")) ?? [];
+}
+
+export async function createPerfil(nome: string): Promise<Perfil> {
+  return (await apiFetch<Perfil>("/api/paginas/perfis", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nome }),
+  }))!;
+}
+
+export async function updatePerfil(
+  perfilId: number,
+  nome: string,
+): Promise<Perfil> {
+  return (await apiFetch<Perfil>(`/api/paginas/perfis/${perfilId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nome }),
+  }))!;
+}
+
+export async function deletePerfil(perfilId: number): Promise<void> {
+  await apiFetch(`/api/paginas/perfis/${perfilId}`, { method: "DELETE" });
+}
+
+export async function updatePerfilPaginas(
+  perfilId: number,
+  paginas: { pagina_id: number; acoes: string[] }[],
+): Promise<void> {
+  await apiFetch(`/api/paginas/perfis/${perfilId}/paginas`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ paginas }),
+  });
 }

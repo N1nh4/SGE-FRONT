@@ -1,9 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { AlertCircle, BarChart3, Building2, ClipboardCheck, FileCheck, Goal, LogOut, Target } from "lucide-react";
+import {
+  BarChart3,
+  Building2,
+  ClipboardCheck,
+  FileCheck,
+  Goal,
+  LogOut,
+  Settings,
+  Target,
+} from "lucide-react";
 import { useAuth } from "@/context/auth-context";
-import { canAccessRoute } from "@/lib/roles";
 
 const navItems = [
   { label: "Indicadores", href: "/indicadores", icon: BarChart3 },
@@ -12,15 +20,18 @@ const navItems = [
   { label: "Validação", href: "/validacao", icon: ClipboardCheck },
   { label: "Objetivos", href: "/objetivos", icon: Target },
   { label: "Unidades", href: "/unidades", icon: Building2 },
-  { label: "Pendências", href: "/pendencias", icon: AlertCircle },
 ];
 
 export function Sidebar() {
-  const { usuario, logout } = useAuth();
+  const { usuario, unidades, unidadeId, logout } = useAuth();
 
   const itensVisiveis = navItems.filter((item) =>
-    usuario ? canAccessRoute(usuario.papel, item.href) : false,
+    usuario?.paginas?.some(
+      (p) => item.href === p.chave || item.href.startsWith(p.chave + "/"),
+    ) ?? false,
   );
+
+  const unidadeAtual = unidades.find((u) => u.id === unidadeId);
 
   return (
     <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col bg-azul-escuro text-white">
@@ -30,6 +41,13 @@ export function Sidebar() {
         </div>
         <span className="text-lg font-semibold tracking-tight">SGE</span>
       </div>
+
+      {unidadeAtual && (
+        <div className="border-b border-white/10 px-6 py-3">
+          <p className="text-xs text-white/50">Unidade</p>
+          <p className="truncate text-sm font-medium">{unidadeAtual.nome}</p>
+        </div>
+      )}
 
       <nav className="flex-1 space-y-1 px-3 py-4">
         {itensVisiveis.map(({ label, href, icon: Icon }) => (
@@ -42,6 +60,15 @@ export function Sidebar() {
             {label}
           </Link>
         ))}
+        {usuario?.paginas?.some((p) => p.chave === "/configurador") && (
+          <Link
+            href="/configurador"
+            className="flex items-center gap-3 rounded-lg bg-white/10 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-white/15"
+          >
+            <Settings className="size-4" />
+            Configurações
+          </Link>
+        )}
       </nav>
 
       <div className="border-t border-white/10 px-4 py-4">

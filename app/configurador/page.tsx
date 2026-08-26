@@ -1,10 +1,10 @@
 import { ProtectedLayout } from "@/components/protected-layout";
-import { Pendencias } from "@/components/pendencias/pendencias";
+import { Configuracoes } from "@/components/configuracoes/configuracoes";
 
 export default function Page() {
   return (
     <ProtectedLayout>
-      <Pendencias />
+      <Configuracoes />
     </ProtectedLayout>
   );
 }

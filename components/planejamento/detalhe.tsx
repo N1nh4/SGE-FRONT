@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
+  Bell,
   CalendarDays,
   ChartNoAxesCombined,
   Paperclip,
@@ -38,7 +39,7 @@ export function DetalhePlanejamento({ id }: { id: number }) {
   if (erro) {
     return (
       <>
-        <header className="flex items-center justify-between gap-4 border-b px-8 py-6">
+        <header className="flex items-center justify-between gap-4 border-b px-8 py-6 h-16">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">
               Detalhes do Planejamento
@@ -84,6 +85,13 @@ export function DetalhePlanejamento({ id }: { id: number }) {
             </h1>
           </div>
         </div>
+        <Button
+          variant="outline"
+          size="icon"
+          className="cursor-pointer"
+        >
+          <Bell className="h-5 w-5" />
+        </Button>
       </header>
 
       <main className="flex flex-1 flex-col gap-6 bg-cinza-claro p-8">
@@ -98,9 +106,6 @@ export function DetalhePlanejamento({ id }: { id: number }) {
           <div className="flex flex-col gap-5 p-5">
             <div>
               <h3 className="mt-2 font-semibold">{detalhe.objetivo.nome}</h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {detalhe.objetivo.descricao}
-              </p>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="rounded-lg border bg-muted/30 p-4">
