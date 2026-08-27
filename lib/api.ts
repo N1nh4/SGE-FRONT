@@ -418,6 +418,26 @@ export async function selecionarUnidade(
   return resultado;
 }
 
+export type MeResponse = {
+  usuario: {
+    id: number;
+    nome: string;
+    email: string;
+    papel: string;
+    status: number;
+  };
+  unidades: UnidadeLogin[];
+  unidade_id: number | null;
+  papel: string;
+  paginas: PaginaComAcoes[];
+};
+
+export async function fetchMe(): Promise<MeResponse> {
+  const resultado = await apiFetch<MeResponse>("/api/auth/me");
+  if (!resultado) throw new Error("Erro ao buscar perfil");
+  return resultado;
+}
+
 export type Pagina = {
   id: number;
   chave: string;
@@ -438,6 +458,21 @@ export type Perfil = {
 
 export async function fetchPaginas(): Promise<Pagina[]> {
   return (await apiFetch<Pagina[]>("/api/paginas")) ?? [];
+}
+
+export type AcaoDisponivel = {
+  chave: string;
+  nome: string;
+};
+
+export type PaginaCatalogo = {
+  chave: string;
+  nome: string;
+  acoes: AcaoDisponivel[];
+};
+
+export async function fetchCatalogoAcoes(): Promise<PaginaCatalogo[]> {
+  return (await apiFetch<PaginaCatalogo[]>("/api/paginas/catalogo")) ?? [];
 }
 
 export async function fetchPerfis(): Promise<Perfil[]> {
@@ -476,4 +511,38 @@ export async function updatePerfilPaginas(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ paginas }),
   });
+}
+
+export type Notificacao = {
+  id: number;
+  usuario_id: number;
+  tipo: string;
+  titulo: string;
+  mensagem: string;
+  lida: boolean;
+  created_at: string;
+};
+
+export async function fetchNotificacoes(): Promise<Notificacao[]> {
+  return (await apiFetch<Notificacao[]>("/api/notificacoes")) ?? [];
+}
+
+export async function fetchNotificacoesQuantidade(): Promise<number> {
+  const r = await apiFetch<{ quantidade: number }>(
+    "/api/notificacoes/quantidade",
+  );
+  return r?.quantidade ?? 0;
+}
+
+export async function marcarNotificacaoLida(id: number): Promise<Notificacao> {
+  const atualizada = await apiFetch<Notificacao>(
+    `/api/notificacoes/${id}/ler`,
+    { method: "POST" },
+  );
+  if (!atualizada) throw new Error("Resposta vazia ao marcar como lida");
+  return atualizada;
+}
+
+export async function marcarTodasNotificacoesLidas(): Promise<void> {
+  await apiFetch("/api/notificacoes/ler-todas", { method: "POST" });
 }

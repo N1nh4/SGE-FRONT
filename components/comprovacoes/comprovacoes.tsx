@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, Search, Eye } from "lucide-react";
+import { Search, Eye } from "lucide-react";
+import { HeaderBell } from "@/components/notificacoes/header-bell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -211,13 +212,7 @@ export function Comprovacoes() {
             Acompanhe o status das comprovações de cada meta.
           </p> */}
         </div>
-        <Button
-          variant="outline"
-          size="icon"
-          className="cursor-pointer"
-        >
-          <Bell className="h-5 w-5" />
-        </Button>
+        <HeaderBell />
       </header>
 
       <main className="flex-1 bg-cinza-claro p-8">

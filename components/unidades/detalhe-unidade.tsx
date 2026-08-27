@@ -4,7 +4,6 @@ import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
-  Bell,
   Building2,
   LoaderCircle,
   Lock,
@@ -14,7 +13,9 @@ import {
   Trash2,
   User,
 } from "lucide-react";
+import { HeaderBell } from "@/components/notificacoes/header-bell";
 import { Button } from "@/components/ui/button";
+import { usePermissoes } from "@/lib/use-permissoes";
 import {
   Dialog,
   DialogContent,
@@ -39,6 +40,7 @@ import {
 } from "@/lib/api";
 
 export function DetalheUnidade({ unidadeId }: { unidadeId: number }) {
+  const { pode } = usePermissoes();
   const [unidade, setUnidade] = useState<Unidade | null>(null);
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
   const [perfis, setPerfis] = useState<Perfil[]>([]);
@@ -174,24 +176,20 @@ export function DetalheUnidade({ unidadeId }: { unidadeId: number }) {
             </p>
           </div>
         </div>
-        <Button
-          variant="outline"
-          size="icon"
-          className="cursor-pointer"
-        >
-          <Bell className="h-5 w-5" />
-        </Button>
+        <HeaderBell />
       </header>
 
       <main className="flex-1 bg-cinza-claro p-8">
         <div className="mb-4 flex justify-end">
-          <Button
-            onClick={abrirNovo}
-            className="cursor-pointer bg-bege hover:bg-bege/90"
-          >
-            <Plus />
-            Adicionar Colaborador
-          </Button>
+          {pode("/unidades", "criar") && (
+            <Button
+              onClick={abrirNovo}
+              className="cursor-pointer bg-bege hover:bg-bege/90"
+            >
+              <Plus />
+              Adicionar Colaborador
+            </Button>
+          )}
         </div>
         <div className="flex items-center gap-3 rounded-xl border bg-card p-5">
           <div className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-azul-escuro text-white">
@@ -248,14 +246,16 @@ export function DetalheUnidade({ unidadeId }: { unidadeId: number }) {
                   </td>
                   <td className="px-5 py-4 align-top">
                     <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => abrirEdicao(col)}
-                        className="cursor-pointer rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                        title="Editar"
-                      >
-                        <Pencil className="size-4" />
-                      </button>
-                      {col.status === 1 && (
+                      {pode("/unidades", "editar") && (
+                        <button
+                          onClick={() => abrirEdicao(col)}
+                          className="cursor-pointer rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                          title="Editar"
+                        >
+                          <Pencil className="size-4" />
+                        </button>
+                      )}
+                      {col.status === 1 && pode("/unidades", "excluir") && (
                         <button
                           onClick={() => inativarColaborador(col)}
                           className="cursor-pointer rounded p-1 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600"

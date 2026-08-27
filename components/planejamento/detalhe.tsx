@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
-  Bell,
   CalendarDays,
   ChartNoAxesCombined,
   Paperclip,
@@ -13,6 +12,7 @@ import {
   Target,
   User,
 } from "lucide-react";
+import { HeaderBell } from "@/components/notificacoes/header-bell";
 import { Button } from "@/components/ui/button";
 import {
   fetchPlanejamentoById,
@@ -85,13 +85,7 @@ export function DetalhePlanejamento({ id }: { id: number }) {
             </h1>
           </div>
         </div>
-        <Button
-          variant="outline"
-          size="icon"
-          className="cursor-pointer"
-        >
-          <Bell className="h-5 w-5" />
-        </Button>
+        <HeaderBell />
       </header>
 
       <main className="flex flex-1 flex-col gap-6 bg-cinza-claro p-8">

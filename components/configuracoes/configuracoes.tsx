@@ -15,21 +15,15 @@ import { useAuth } from "@/context/auth-context";
 import {
   type Pagina,
   type Perfil,
+  type PaginaCatalogo,
   fetchPaginas,
   fetchPerfis,
+  fetchCatalogoAcoes,
   createPerfil,
   updatePerfil,
   deletePerfil,
   updatePerfilPaginas,
 } from "@/lib/api";
-
-const ALL_ACTIONS = ["ver", "criar", "editar", "excluir"];
-const ACTION_LABELS: Record<string, string> = {
-  ver: "Ver",
-  criar: "Criar",
-  editar: "Editar",
-  excluir: "Excluir",
-};
 
 type PerfilPermissoes = Record<string, string[]>;
 
@@ -37,6 +31,7 @@ export function Configuracoes() {
   const { usuario } = useAuth();
   const [paginas, setPaginas] = useState<Pagina[]>([]);
   const [perfis, setPerfis] = useState<Perfil[]>([]);
+  const [catalogo, setCatalogo] = useState<PaginaCatalogo[]>([]);
   const [perfilPermissoes, setPerfilPermissoes] = useState<
     Record<string, PerfilPermissoes>
   >({});
@@ -53,9 +48,14 @@ export function Configuracoes() {
 
   const carregarDados = useCallback(async () => {
     try {
-      const [p, perf] = await Promise.all([fetchPaginas(), fetchPerfis()]);
+      const [p, perf, cat] = await Promise.all([
+        fetchPaginas(),
+        fetchPerfis(),
+        fetchCatalogoAcoes(),
+      ]);
       setPaginas(p);
       setPerfis(perf);
+      setCatalogo(cat);
 
       const permMap: Record<number, PerfilPermissoes> = {};
       for (const perfil of perf) {
@@ -307,6 +307,8 @@ export function Configuracoes() {
                   0;
                 const acoesAtuais =
                   perfilPermissoes[perfil.id]?.[pagina.chave] ?? [];
+                const catalogoPagina =
+                  catalogo.find((c) => c.chave === pagina.chave)?.acoes ?? [];
                 return (
                   <div
                     key={pagina.id}
@@ -324,23 +326,33 @@ export function Configuracoes() {
                       {pagina.nome}
                     </label>
                     {temPagina && (
-                      <div className="flex items-center gap-3 ml-6">
-                        {ALL_ACTIONS.map((acao) => (
-                          <label
-                            key={acao}
-                            className="flex items-center gap-1 text-xs text-muted-foreground"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={acoesAtuais.includes(acao)}
-                              onChange={() =>
-                                toggleAcao(perfil.id, pagina.chave, acao)
-                              }
-                              className="size-3 rounded border-gray-300"
-                            />
-                            {ACTION_LABELS[acao]}
-                          </label>
-                        ))}
+                      <div className="flex flex-wrap items-center gap-3 ml-6">
+                        {catalogoPagina.length === 0 ? (
+                          <span className="text-xs text-muted-foreground">
+                            Sem ações configuráveis
+                          </span>
+                        ) : (
+                          catalogoPagina.map((acao) => (
+                            <label
+                              key={acao.chave}
+                              className="flex items-center gap-1 text-xs text-muted-foreground"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={acoesAtuais.includes(acao.chave)}
+                                onChange={() =>
+                                  toggleAcao(
+                                    perfil.id,
+                                    pagina.chave,
+                                    acao.chave,
+                                  )
+                                }
+                                className="size-3 rounded border-gray-300"
+                              />
+                              {acao.nome}
+                            </label>
+                          ))
+                        )}
                       </div>
                     )}
                   </div>

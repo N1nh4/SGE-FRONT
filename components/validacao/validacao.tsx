@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Bell, Building2, CalendarRange, ClipboardCheck } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ClipboardCheck } from "lucide-react";
+import { HeaderBell } from "@/components/notificacoes/header-bell";
 import { fetchUnidades, type Unidade } from "@/lib/api";
 
 const MESES = [
@@ -47,13 +47,7 @@ export function Validacao() {
             enviadas.
           </p> */}
         </div>
-        <Button
-          variant="outline"
-          size="icon"
-          className="cursor-pointer"
-        >
-          <Bell className="h-5 w-5" />
-        </Button>
+        <HeaderBell />
       </header>
 
       <main className="flex flex-1 flex-col gap-6 bg-cinza-claro p-8">

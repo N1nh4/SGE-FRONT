@@ -3,6 +3,7 @@
 import Link from "next/link";
 import {
   BarChart3,
+  Bell,
   Building2,
   ClipboardCheck,
   FileCheck,
@@ -20,15 +21,17 @@ const navItems = [
   { label: "Validação", href: "/validacao", icon: ClipboardCheck },
   { label: "Objetivos", href: "/objetivos", icon: Target },
   { label: "Unidades", href: "/unidades", icon: Building2 },
+  { label: "Notificações", href: "/notificacoes", icon: Bell },
 ];
 
 export function Sidebar() {
   const { usuario, unidades, unidadeId, logout } = useAuth();
 
-  const itensVisiveis = navItems.filter((item) =>
-    usuario?.paginas?.some(
-      (p) => item.href === p.chave || item.href.startsWith(p.chave + "/"),
-    ) ?? false,
+  const itensVisiveis = navItems.filter(
+    (item) =>
+      usuario?.paginas?.some(
+        (p) => item.href === p.chave || item.href.startsWith(p.chave + "/"),
+      ) ?? false,
   );
 
   const unidadeAtual = unidades.find((u) => u.id === unidadeId);

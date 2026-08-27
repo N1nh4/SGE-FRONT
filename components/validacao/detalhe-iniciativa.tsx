@@ -12,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { usePermissoes } from "@/lib/use-permissoes";
 import {
   Dialog,
   DialogContent,
@@ -86,6 +87,8 @@ export function DetalheIniciativa({
   mes: number;
   ano: number;
 }) {
+  const { pode } = usePermissoes();
+  const podeAprovar = pode("/validacao", "aprovar");
   const [unidade, setUnidade] = useState<Unidade | null>(null);
   const [planejamento, setPlanejamento] = useState<Planejamento | null>(null);
   const [itens, setItens] = useState<ComprovacaoDetalhe[]>([]);
@@ -400,7 +403,7 @@ export function DetalheIniciativa({
                 </div>
               </div>
 
-              {itemAtual.status === "analise" && (
+              {podeAprovar && itemAtual.status === "analise" && (
                 <div className="flex flex-col gap-3 border-t pt-6">
                   <Button
                     onClick={aprovar}

@@ -3,7 +3,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import {
-  Bell,
   CalendarDays,
   Eye,
   LoaderCircle,
@@ -11,7 +10,9 @@ import {
   Plus,
   Trash,
 } from "lucide-react";
+import { HeaderBell } from "@/components/notificacoes/header-bell";
 import { Button } from "@/components/ui/button";
+import { usePermissoes } from "@/lib/use-permissoes";
 import {
   Dialog,
   DialogContent,
@@ -48,6 +49,7 @@ function formatarData(iso: string): string {
 }
 
 export function Unidades() {
+  const { pode } = usePermissoes();
   const [unidades, setUnidades] = useState<Unidade[]>([]);
   const [contagens, setContagens] = useState<Record<number, number>>({});
   const [carregando, setCarregando] = useState(true);
@@ -141,20 +143,20 @@ export function Unidades() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Unidades</h1>
         </div>
-        <Button variant="outline" size="icon" className="cursor-pointer">
-          <Bell className="h-5 w-5" />
-        </Button>
+        <HeaderBell />
       </header>
 
       <main className="flex-1 bg-cinza-claro px-8 pt-4 pb-8">
         <div className="mb-4 flex justify-end">
-          <Button
-            onClick={abrirNovo}
-            className="cursor-pointer bg-bege hover:bg-bege/90"
-          >
-            <Plus />
-            Adicionar Unidade
-          </Button>
+          {pode("/unidades", "criar") && (
+            <Button
+              onClick={abrirNovo}
+              className="cursor-pointer bg-bege hover:bg-bege/90"
+            >
+              <Plus />
+              Adicionar Unidade
+            </Button>
+          )}
         </div>
         {carregando ? (
           <div className="flex items-center justify-center py-12">
@@ -193,22 +195,26 @@ export function Unidades() {
                   >
                     <Eye />
                   </Button>
-                  <Button
-                    type="button"
-                    size="icon"
-                    onClick={() => abrirEdicao(unidade)}
-                    className="border border-solid border-black/[.08] rounded-mds bg-white hover:bg-white/90 text-azul-escuro cursor-pointer"
-                  >
-                    <Pencil />
-                  </Button>
-                  <Button
-                    type="button"
-                    size="icon"
-                    onClick={() => setExcluindo(unidade)}
-                    className="bg-red-600/90 text-white hover:bg-red-600/80 cursor-pointer"
-                  >
-                    <Trash className="h-5 w-5" />
-                  </Button>
+                  {pode("/unidades", "editar") && (
+                    <Button
+                      type="button"
+                      size="icon"
+                      onClick={() => abrirEdicao(unidade)}
+                      className="border border-solid border-black/[.08] rounded-mds bg-white hover:bg-white/90 text-azul-escuro cursor-pointer"
+                    >
+                      <Pencil />
+                    </Button>
+                  )}
+                  {pode("/unidades", "excluir") && (
+                    <Button
+                      type="button"
+                      size="icon"
+                      onClick={() => setExcluindo(unidade)}
+                      className="bg-red-600/90 text-white hover:bg-red-600/80 cursor-pointer"
+                    >
+                      <Trash className="h-5 w-5" />
+                    </Button>
+                  )}
                 </div>
               </article>
             ))}

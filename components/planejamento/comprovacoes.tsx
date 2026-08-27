@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
-  Bell,
   ExternalLink,
   FileText,
   LoaderCircle,
@@ -12,7 +11,9 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
+import { HeaderBell } from "@/components/notificacoes/header-bell";
 import { Button } from "@/components/ui/button";
+import { usePermissoes } from "@/lib/use-permissoes";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
@@ -62,6 +63,9 @@ export function PaginaComprovacoes({
   planejamentoId: number;
   indicadorId: number;
 }) {
+  const { pode } = usePermissoes();
+  const podeCriar = pode("/comprovacoes", "criar");
+  const podeExcluir = pode("/comprovacoes", "excluir");
   const [planejamento, setPlanejamento] = useState<Planejamento | null>(null);
   const [erro, setErro] = useState(false);
   const [itens, setItens] = useState<Comprovacao[] | null>(null);
@@ -186,13 +190,7 @@ export function PaginaComprovacoes({
             <p className="text-sm text-muted-foreground">{indicador.nome}</p>
           </div>
         </div>
-        <Button
-          variant="outline"
-          size="icon"
-          className="cursor-pointer"
-        >
-          <Bell className="h-5 w-5" />
-        </Button>
+        <HeaderBell />
       </header>
 
       <main className="flex flex-1 flex-col gap-6 bg-cinza-claro p-8">
@@ -277,18 +275,20 @@ export function PaginaComprovacoes({
                           >
                             <ExternalLink />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => handleDelete(comprovacao)}
-                            className="cursor-pointer text-red-600 hover:text-red-600"
-                            aria-label="Excluir comprovação"
-                          >
-                            <Trash2 />
-                          </Button>
+                          {podeExcluir && (
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => handleDelete(comprovacao)}
+                              className="cursor-pointer text-red-600 hover:text-red-600"
+                              aria-label="Excluir comprovação"
+                            >
+                              <Trash2 />
+                            </Button>
+                          )}
                         </div>
                       </div>
-                    ) : etapaSelecionada === etapa.id ? (
+                    ) : !podeCriar ? null : etapaSelecionada === etapa.id ? (
                       <form onSubmit={handleUpload} className="flex flex-col gap-3">
                         <div className="grid gap-2">
                           <Label htmlFor={`arquivo-${etapa.id}`}>

@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Bell,
   Check,
   ChevronDown,
   FileDown,
@@ -11,6 +10,7 @@ import {
   Plus,
   Trash,
 } from "lucide-react";
+import { HeaderBell } from "@/components/notificacoes/header-bell";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -86,6 +86,10 @@ export function Planejamento() {
   const podeExcluir =
     usuario?.paginas?.some(
       (p) => p.chave === "/planejamento" && p.acoes.includes("excluir"),
+    ) ?? false;
+  const podeRelatorio =
+    usuario?.paginas?.some(
+      (p) => p.chave === "/planejamento" && p.acoes.includes("relatorio"),
     ) ?? false;
   const [itens, setItens] = useState<Planejamento[]>([]);
   const [objetivos, setObjetivos] = useState<Objetivo[]>([]);
@@ -308,14 +312,12 @@ export function Planejamento() {
             Planejamento
           </h1>
         </div>
-        <Button variant="outline" size="icon" className="cursor-pointer">
-          <Bell className="h-5 w-5" />
-        </Button>
+        <HeaderBell />
       </header>
 
       <main className="flex-1 bg-cinza-claro px-8 pt-4 pb-8">
         <div className="mb-4 flex items-center justify-end gap-2">
-          {(podeCriar || podeEditar) && (
+          {podeRelatorio && (
             <Button
               onClick={() => gerarRelatorioPlanejamento(itens)}
               variant="outline"

@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Bell, Building2, Eye, LoaderCircle, Search } from "lucide-react";
+import { ArrowLeft, Building2, Eye, LoaderCircle, Search } from "lucide-react";
+import { HeaderBell } from "@/components/notificacoes/header-bell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -207,13 +208,7 @@ export function ValidacaoUnidade({
           <Building2 className="h-3.5 w-3.5" />
           {unidade?.nome ?? "Unidade"}
         </span>
-        <Button
-          variant="outline"
-          size="icon"
-          className="cursor-pointer"
-        >
-          <Bell className="h-5 w-5" />
-        </Button>
+        <HeaderBell />
       </header>
 
       <main className="flex-1 bg-cinza-claro p-8">

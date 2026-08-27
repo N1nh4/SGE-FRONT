@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { Bell, CalendarDays, Pencil, Plus, Trash } from "lucide-react";
+import { CalendarDays, Pencil, Plus, Trash } from "lucide-react";
 import Masonry from "react-masonry-css";
+import { HeaderBell } from "@/components/notificacoes/header-bell";
 import { Button } from "@/components/ui/button";
+import { usePermissoes } from "@/lib/use-permissoes";
 import {
   Dialog,
   DialogContent,
@@ -43,6 +45,7 @@ const breakpointColumns = {
 };
 
 export function Objetivos() {
+  const { pode } = usePermissoes();
   const [objetivos, setObjetivos] = useState<Objetivo[]>([]);
   const [open, setOpen] = useState(false);
   const [editando, setEditando] = useState<Objetivo | null>(null);
@@ -129,20 +132,20 @@ export function Objetivos() {
             Objetivos Estratégicos
           </h1>
         </div>
-        <Button variant="outline" size="icon" className="cursor-pointer">
-          <Bell className="h-5 w-5" />
-        </Button>
+        <HeaderBell />
       </header>
 
       <main className="flex-1 bg-cinza-claro px-8 pt-4 pb-8">
         <div className="mb-4 flex justify-end">
-          <Button
-            onClick={abrirNovo}
-            className="cursor-pointer bg-bege hover:bg-bege/90"
-          >
-            <Plus />
-            Adicionar Objetivo
-          </Button>
+          {pode("/objetivos", "criar") && (
+            <Button
+              onClick={abrirNovo}
+              className="cursor-pointer bg-bege hover:bg-bege/90"
+            >
+              <Plus />
+              Adicionar Objetivo
+            </Button>
+          )}
         </div>
         <Masonry
           breakpointCols={breakpointColumns}
@@ -175,22 +178,26 @@ export function Objetivos() {
                   Criado em {new Date().toLocaleDateString("pt-BR")}
                 </span>
                 <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    size="icon"
-                    onClick={() => abrirEdicao(objetivo)}
-                    className="border border-solid border-black/[.08] rounded-mds bg-white hover:bg-white/90 text-azul-escuro cursor-pointer"
-                  >
-                    <Pencil />
-                  </Button>
-                  <Button
-                    type="button"
-                    size="icon"
-                    onClick={() => setExcluindo(objetivo)}
-                    className="bg-red-600/90 text-white hover:bg-red-600/80 cursor-pointer"
-                  >
-                    <Trash />
-                  </Button>
+                  {pode("/objetivos", "editar") && (
+                    <Button
+                      type="button"
+                      size="icon"
+                      onClick={() => abrirEdicao(objetivo)}
+                      className="border border-solid border-black/[.08] rounded-mds bg-white hover:bg-white/90 text-azul-escuro cursor-pointer"
+                    >
+                      <Pencil />
+                    </Button>
+                  )}
+                  {pode("/objetivos", "excluir") && (
+                    <Button
+                      type="button"
+                      size="icon"
+                      onClick={() => setExcluindo(objetivo)}
+                      className="bg-red-600/90 text-white hover:bg-red-600/80 cursor-pointer"
+                    >
+                      <Trash />
+                    </Button>
+                  )}
                 </div>
               </div>
             </article>

@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
-import { selecionarUnidade, type UnidadeLogin, type PaginaComAcoes } from "@/lib/api";
+import { selecionarUnidade, fetchMe, type UnidadeLogin, type PaginaComAcoes } from "@/lib/api";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -31,6 +31,7 @@ type AuthContextValue = {
   carregando: boolean;
   login: (email: string, senha: string) => Promise<void>;
   selecionarUnidade: (unidadeId: number) => Promise<void>;
+  revalidarPermissoes: () => Promise<void>;
   logout: () => void;
 };
 
@@ -157,6 +158,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [router],
   );
 
+  const revalidarPermissoes = useCallback(async () => {
+    try {
+      const me = await fetchMe();
+      const novo: Usuario = {
+        id: me.usuario.id,
+        nome: me.usuario.nome,
+        email: me.usuario.email,
+        papel: me.papel,
+        status: me.usuario.status,
+        paginas: me.paginas,
+      };
+      setUsuario((atual) => {
+        if (
+          atual &&
+          atual.id === novo.id &&
+          atual.papel === novo.papel &&
+          JSON.stringify(atual.paginas) === JSON.stringify(novo.paginas)
+        ) {
+          return atual;
+        }
+        const salvo = localStorage.getItem("auth");
+        if (salvo) {
+          try {
+            const parsed = JSON.parse(salvo);
+            parsed.usuario = novo;
+            parsed.papel = novo.papel;
+            localStorage.setItem("auth", JSON.stringify(parsed));
+          } catch {
+            // ignora
+          }
+        }
+        return novo;
+      });
+      setUnidades(me.unidades);
+    } catch {
+      // Backend offline ou sem autenticação
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!token) return;
+    const revalidar = () => {
+      revalidarPermissoes().catch(() => {});
+    };
+    const aoFocar = () => {
+      if (document.visibilityState === "visible") revalidar();
+    };
+    document.addEventListener("visibilitychange", aoFocar);
+    window.addEventListener("focus", aoFocar);
+    const intervalo = setInterval(revalidar, 20 * 60 * 1000);
+    return () => {
+      document.removeEventListener("visibilitychange", aoFocar);
+      window.removeEventListener("focus", aoFocar);
+      clearInterval(intervalo);
+    };
+  }, [token, revalidarPermissoes]);
+
   const logout = useCallback(() => {
     localStorage.removeItem("auth");
     setToken(null);
@@ -175,9 +233,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       carregando,
       login,
       selecionarUnidade: handleSelecionarUnidade,
+      revalidarPermissoes,
       logout,
     }),
-    [usuario, token, unidadeId, unidades, carregando, login, handleSelecionarUnidade, logout],
+    [usuario, token, unidadeId, unidades, carregando, login, handleSelecionarUnidade, revalidarPermissoes, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
