@@ -50,6 +50,20 @@ export function Notificacao() {
       .then((lista) => setNotificacoes(lista))
       .catch(() => setNotificacoes([]))
       .finally(() => setCarregando(false));
+
+    function aoFocar() {
+      if (document.visibilityState === "visible") {
+        fetchNotificacoes()
+          .then((lista) => setNotificacoes(lista))
+          .catch(() => {});
+      }
+    }
+    document.addEventListener("visibilitychange", aoFocar);
+    window.addEventListener("focus", aoFocar);
+    return () => {
+      document.removeEventListener("visibilitychange", aoFocar);
+      window.removeEventListener("focus", aoFocar);
+    };
   }, []);
 
   const visiveis = useMemo(() => {

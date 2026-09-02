@@ -25,7 +25,7 @@ export function ProtectedLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { usuario, unidades, unidadeId, carregando } = useAuth();
+  const { usuario, unidades, unidadeId, carregando, saiu } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -33,10 +33,14 @@ export function ProtectedLayout({
     if (carregando) return;
 
     if (!usuario) {
-      toast.error("Você precisa estar logado para acessar esta página.");
+      if (!saiu) {
+        toast.error("Você precisa estar logado para acessar esta página.");
+      }
       const timeout = setTimeout(() => router.replace("/"), 1500);
       return () => clearTimeout(timeout);
     }
+
+    if (unidades.length > 1 && !unidadeId) return;
 
     if (!canAccessPages(usuario.paginas, pathname)) {
       toast.error("Você não tem permissão para acessar esta página.");
@@ -44,7 +48,7 @@ export function ProtectedLayout({
       const timeout = setTimeout(() => router.replace(destino), 1500);
       return () => clearTimeout(timeout);
     }
-  }, [carregando, usuario, router, pathname]);
+  }, [carregando, usuario, saiu, unidades, unidadeId, router, pathname]);
 
   if (carregando) {
     return (

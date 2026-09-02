@@ -46,6 +46,7 @@ import {
   type Unidade,
 } from "@/lib/api";
 import { useAuth } from "@/context/auth-context";
+import { useNotificacoes } from "@/context/notification-context";
 import { gerarRelatorioPlanejamento } from "@/lib/report";
 
 type IndicadorForm = {
@@ -74,7 +75,8 @@ function indicadorVazio(): IndicadorForm {
 
 export function Planejamento() {
   const router = useRouter();
-  const { usuario } = useAuth();
+  const { usuario, unidadeId } = useAuth();
+  const { refresh: refreshNotificacoes } = useNotificacoes();
   const podeCriar =
     usuario?.paginas?.some(
       (p) => p.chave === "/planejamento" && p.acoes.includes("criar"),
@@ -106,6 +108,11 @@ export function Planejamento() {
   const [buscaUnidade, setBuscaUnidade] = useState("");
   const [etapaForm, setEtapaForm] = useState<1 | 2>(1);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const unidadesResponsaveis =
+    usuario?.papel === "default" && unidadeId != null
+      ? unidades.filter((u) => u.id === unidadeId)
+      : unidades;
 
   useEffect(() => {
     function handleClickFora(event: MouseEvent) {
@@ -149,7 +156,13 @@ export function Planejamento() {
     setEditando(null);
     setObjetivoId("");
     setNome("");
-    setIndicadores([indicadorVazio()]);
+    const unidadePadrao =
+      usuario?.papel === "default" && unidadeId != null
+        ? String(unidadeId)
+        : "";
+    setIndicadores([
+      { ...indicadorVazio(), unidadeIds: unidadePadrao ? [unidadePadrao] : [] },
+    ]);
     setEtapaForm(1);
     setOpen(true);
   }
@@ -188,7 +201,17 @@ export function Planejamento() {
 
   function adicionarIndicador() {
     const novoIndex = indicadores.length;
-    setIndicadores((prev) => [...prev, indicadorVazio()]);
+    const unidadePadrao =
+      usuario?.papel === "default" && unidadeId != null
+        ? String(unidadeId)
+        : "";
+    setIndicadores((prev) => [
+      ...prev,
+      {
+        ...indicadorVazio(),
+        unidadeIds: unidadePadrao ? [unidadePadrao] : [],
+      },
+    ]);
     setTimeout(() => {
       document
         .getElementById(`indicador-card-${novoIndex}`)
@@ -279,6 +302,7 @@ export function Planejamento() {
         setItens((prev) => [...prev, criado]);
         toast.success("Planejamento criado com sucesso.");
       }
+      refreshNotificacoes().catch(() => {});
     } catch {
       toast.error(
         editando
@@ -761,10 +785,11 @@ export function Planejamento() {
                                   {indicador.unidadeIds.length === 0
                                     ? "Selecione unidades..."
                                     : indicador.unidadeIds.length ===
-                                        unidades.length
+                                        unidadesResponsaveis.length
                                       ? "Todos selecionados"
                                       : (() => {
-                                          const selecionadas = unidades
+                                          const selecionadas =
+                                            unidadesResponsaveis
                                             .filter((u) =>
                                               indicador.unidadeIds.includes(
                                                 String(u.id),
@@ -780,12 +805,12 @@ export function Planejamento() {
                               </button>
                               {dropdownAberto === index && (
                                 <div className="absolute z-50 mb-1 w-full overflow-auto rounded-lg border bg-popover shadow-md bottom-full">
-                                  {unidades.length === 0 && (
+                                  {unidadesResponsaveis.length === 0 && (
                                     <div className="px-2.5 py-1.5 text-sm text-muted-foreground">
                                       Nenhuma unidade cadastrada.
                                     </div>
                                   )}
-                                  {unidades.length > 0 && (
+                                  {unidadesResponsaveis.length > 0 && (
                                     <>
                                       <div className="border-b px-2.5 py-1.5">
                                         <input
@@ -804,9 +829,10 @@ export function Planejamento() {
                                           <button
                                             type="button"
                                             onClick={() => {
-                                              const todosIds = unidades.map(
-                                                (u) => String(u.id),
-                                              );
+                                              const todosIds =
+                                                unidadesResponsaveis.map(
+                                                  (u) => String(u.id),
+                                                );
                                               const todasSelecionadas =
                                                 indicador.unidadeIds.length ===
                                                 todosIds.length;
@@ -829,22 +855,23 @@ export function Planejamento() {
                                             <span
                                               className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
                                                 indicador.unidadeIds.length ===
-                                                  unidades.length &&
-                                                unidades.length > 0
+                                                  unidadesResponsaveis.length &&
+                                                unidadesResponsaveis.length > 0
                                                   ? "border-bege bg-bege text-white"
                                                   : "border-input"
                                               }`}
                                             >
                                               {indicador.unidadeIds.length ===
-                                                unidades.length &&
-                                                unidades.length > 0 && (
+                                                unidadesResponsaveis.length &&
+                                                unidadesResponsaveis.length >
+                                                  0 && (
                                                   <Check className="h-3 w-3" />
                                                 )}
                                             </span>
                                             Selecionar todos
                                           </button>
                                         )}
-                                        {unidades
+                                        {unidadesResponsaveis
                                           .filter((u) =>
                                             u.nome
                                               .toLowerCase()

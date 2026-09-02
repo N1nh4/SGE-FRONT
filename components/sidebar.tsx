@@ -13,6 +13,7 @@ import {
   Target,
 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
+import { useNotificacoes } from "@/context/notification-context";
 
 const navItems = [
   { label: "Indicadores", href: "/indicadores", icon: BarChart3 },
@@ -26,6 +27,7 @@ const navItems = [
 
 export function Sidebar() {
   const { usuario, unidades, unidadeId, logout } = useAuth();
+  const { naoLidas } = useNotificacoes();
 
   const itensVisiveis = navItems.filter(
     (item) =>
@@ -60,7 +62,12 @@ export function Sidebar() {
             className="flex items-center gap-3 rounded-lg bg-white/10 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-white/15"
           >
             <Icon className="size-4" />
-            {label}
+            <span className="flex-1">{label}</span>
+            {href === "/notificacoes" && naoLidas > 0 && (
+              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-semibold leading-none text-white">
+                {naoLidas > 99 ? "99+" : naoLidas}
+              </span>
+            )}
           </Link>
         ))}
         {usuario?.paginas?.some((p) => p.chave === "/configurador") && (

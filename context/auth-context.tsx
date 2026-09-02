@@ -29,6 +29,7 @@ type AuthContextValue = {
   unidadeId: number | null;
   unidades: UnidadeLogin[];
   carregando: boolean;
+  saiu: boolean;
   login: (email: string, senha: string) => Promise<void>;
   selecionarUnidade: (unidadeId: number) => Promise<void>;
   revalidarPermissoes: () => Promise<void>;
@@ -43,6 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [unidadeId, setUnidadeId] = useState<number | null>(null);
   const [unidades, setUnidades] = useState<UnidadeLogin[]>([]);
   const [carregando, setCarregando] = useState(true);
+  const [saiu, setSaiu] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -66,6 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(
     async (email: string, senha: string) => {
+      setSaiu(false);
       const res = await fetch(`${API_URL}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -216,6 +219,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [token, revalidarPermissoes]);
 
   const logout = useCallback(() => {
+    setSaiu(true);
     localStorage.removeItem("auth");
     setToken(null);
     setUsuario(null);
@@ -231,12 +235,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       unidadeId,
       unidades,
       carregando,
+      saiu,
       login,
       selecionarUnidade: handleSelecionarUnidade,
       revalidarPermissoes,
       logout,
     }),
-    [usuario, token, unidadeId, unidades, carregando, login, handleSelecionarUnidade, revalidarPermissoes, logout],
+    [usuario, token, unidadeId, unidades, carregando, saiu, login, handleSelecionarUnidade, revalidarPermissoes, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
