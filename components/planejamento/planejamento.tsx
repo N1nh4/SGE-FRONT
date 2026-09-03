@@ -6,10 +6,13 @@ import {
   Check,
   ChevronDown,
   FileDown,
+  Inbox,
+  Lightbulb,
   Pencil,
   Plus,
   Trash,
 } from "lucide-react";
+import { PropostaFormDialog, PropostasTabela } from "./propostas";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -37,12 +40,17 @@ import {
 import {
   createPlanejamento,
   deletePlanejamento,
+  enviarProposta,
+  fetchMinhasPropostas,
   fetchObjetivos,
   fetchPlanejamento,
+  fetchPropostasPendentes,
   fetchUnidades,
+  converterProposta,
   updatePlanejamento,
   type Objetivo,
   type Planejamento,
+  type Proposta,
   type Unidade,
 } from "@/lib/api";
 import { useAuth } from "@/context/auth-context";
@@ -108,6 +116,14 @@ export function Planejamento() {
   const [buscaUnidade, setBuscaUnidade] = useState("");
   const [etapaForm, setEtapaForm] = useState<1 | 2>(1);
   const [paginaAtual, setPaginaAtual] = useState(1);
+  const [visao, setVisao] = useState<"normal" | "minhas">("normal");
+  const [recebidasAberto, setRecebidasAberto] = useState(false);
+  const [minhasPropostas, setMinhasPropostas] = useState<Proposta[]>([]);
+  const [recebidasPropostas, setRecebidasPropostas] = useState<Proposta[]>([]);
+  const [formPropostaAberto, setFormPropostaAberto] = useState(false);
+  const [propostaEditando, setPropostaEditando] = useState<Proposta | null>(
+    null,
+  );
   const dropdownRef = useRef<HTMLDivElement>(null);
   const ITENS_POR_PAGINA = 7;
 
@@ -156,6 +172,75 @@ export function Planejamento() {
         console.error("Erro ao buscar unidades:", err);
       });
   }, []);
+
+  async function carregarPlanejamentos() {
+    try {
+      const dados = await fetchPlanejamento();
+      setItens(dados);
+    } catch (err) {
+      console.error("Erro ao buscar planejamento:", err);
+    }
+  }
+
+  async function carregarMinhasPropostas() {
+    try {
+      const dados = await fetchMinhasPropostas();
+      setMinhasPropostas(dados);
+    } catch (err) {
+      console.error("Erro ao buscar minhas sugestões:", err);
+    }
+  }
+
+  async function carregarRecebidas() {
+    try {
+      const dados = await fetchPropostasPendentes();
+      setRecebidasPropostas(dados);
+    } catch (err) {
+      console.error("Erro ao buscar sugestões recebidas:", err);
+    }
+  }
+
+  useEffect(() => {
+    if (visao === "minhas") carregarMinhasPropostas();
+  }, [visao]);
+
+  useEffect(() => {
+    if (recebidasAberto) carregarRecebidas();
+  }, [recebidasAberto]);
+
+  function abrirNovaSugestao() {
+    setPropostaEditando(null);
+    setFormPropostaAberto(true);
+  }
+
+  function abrirEdicaoSugestao(proposta: Proposta) {
+    setPropostaEditando(proposta);
+    setFormPropostaAberto(true);
+  }
+
+  async function handleEnviarSugestao(proposta: Proposta) {
+    try {
+      await enviarProposta(proposta.id);
+      toast.success("Proposta enviada aos gestores.");
+      refreshNotificacoes().catch(() => {});
+      carregarMinhasPropostas();
+    } catch {
+      toast.error("Erro ao enviar a proposta.");
+    }
+  }
+
+  async function handleConverterSugestao(proposta: Proposta) {
+    try {
+      const convertido = await converterProposta(proposta.id);
+      toast.success(
+        `Convertido em planejamento: ${convertido.nome || "sem título"}.`,
+      );
+      carregarRecebidas();
+      carregarPlanejamentos();
+    } catch {
+      toast.error("Erro ao converter a proposta.");
+    }
+  }
 
   const objetivoSelecionado = objetivos.find(
     (objetivo) => String(objetivo.id) === objetivoId,
@@ -347,41 +432,102 @@ export function Planejamento() {
     <>
       <main className="flex-1 bg-cinza-claro px-8 pt-4 pb-8">
         <div className="mb-4 flex items-center justify-end gap-2">
-          {podeRelatorio && (
+          {visao === "minhas" ? (
             <Button
-              onClick={() => gerarRelatorioPlanejamento(itens)}
+              onClick={() => setVisao("normal")}
               variant="outline"
               className="cursor-pointer"
             >
-              <FileDown />
-              Gerar Relatório
+              Voltar para planejamentos
             </Button>
-          )}
-          {podeCriar && (
-            <Button
-              onClick={abrirNovo}
-              className="cursor-pointer bg-bege hover:bg-bege/90"
-            >
-              <Plus />
-              Adicionar Planejamento
-            </Button>
+          ) : (
+            <>
+              {podeRelatorio && (
+                <Button
+                  onClick={() => gerarRelatorioPlanejamento(itens)}
+                  variant="outline"
+                  className="cursor-pointer"
+                >
+                  <FileDown />
+                  Gerar Relatório
+                </Button>
+              )}
+              {usuario?.papel === "default" ? (
+                <>
+                  <Button
+                    onClick={abrirNovaSugestao}
+                    variant="outline"
+                    className="cursor-pointer"
+                  >
+                    <Plus />
+                    Nova Sugestão
+                  </Button>
+                  <Button
+                    onClick={() => setVisao("minhas")}
+                    variant="outline"
+                    className="cursor-pointer"
+                  >
+                    <Lightbulb />
+                    Minhas sugestões
+                  </Button>
+                </>
+              ) : usuario?.papel ? (
+                <Button
+                  onClick={() => setRecebidasAberto(true)}
+                  variant="outline"
+                  className="cursor-pointer"
+                >
+                  <Inbox />
+                  Sugestões recebidas
+                </Button>
+              ) : null}
+              {podeCriar && (
+                <Button
+                  onClick={abrirNovo}
+                  className="cursor-pointer bg-bege hover:bg-bege/90"
+                >
+                  <Plus />
+                  Adicionar Planejamento
+                </Button>
+              )}
+            </>
           )}
         </div>
-        <div className="overflow-x-auto rounded-xl border bg-card">
-          <table className="w-full table-fixed text-sm">
-            <thead>
-              <tr className="border-b bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
-                <th className="w-[5%] px-5 py-3 font-medium">Código</th>
-                <th className="w-[20%] px-5 py-3 font-medium">Objetivo</th>
-                <th className="w-[50%] px-5 py-3 font-medium">Iniciativa</th>
-                <th className="w-[15%] px-5 py-3 font-medium">Progresso</th>
-                {podeEditar && (
-                  <th className="w-[10%] px-5 py-3 text-right font-medium">
-                    Ações
-                  </th>
-                )}
-              </tr>
-            </thead>
+        {visao === "minhas" ? (
+          <>
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold">Minhas sugestões</h2>
+              <p className="text-sm text-muted-foreground">
+                Rascunhos de planejamento criados por você.
+              </p>
+            </div>
+            <PropostasTabela
+              propostas={minhasPropostas}
+              modo="minhas"
+              usuarioId={usuario?.id}
+              ehGestor={false}
+              onEditar={abrirEdicaoSugestao}
+              onEnviar={handleEnviarSugestao}
+              onConverter={() => {}}
+            />
+          </>
+        ) : (
+          <>
+            <div className="overflow-x-auto rounded-xl border bg-card">
+              <table className="w-full table-fixed text-sm">
+              <thead>
+                <tr className="border-b bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
+                  <th className="w-[5%] px-5 py-3 font-medium">Código</th>
+                  <th className="w-[20%] px-5 py-3 font-medium">Objetivo</th>
+                  <th className="w-[50%] px-5 py-3 font-medium">Iniciativa</th>
+                  <th className="w-[15%] px-5 py-3 font-medium">Progresso</th>
+                  {podeEditar && (
+                    <th className="w-[10%] px-5 py-3 text-right font-medium">
+                      Ações
+                    </th>
+                  )}
+                </tr>
+              </thead>
             <tbody>
               {paginasVisiveis.map((item) => (
                 <tr
@@ -468,6 +614,8 @@ export function Planejamento() {
           rotuloItensPlural="planejamentos"
           onMudarPagina={setPaginaAtual}
         />
+          </>
+        )}
       </main>
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -1022,6 +1170,43 @@ export function Planejamento() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <PropostaFormDialog
+        open={formPropostaAberto}
+        onOpenChange={setFormPropostaAberto}
+        proposta={propostaEditando}
+        unidadeId={unidadeId}
+        papel={usuario?.papel}
+        onSalvo={() => {
+          if (usuario?.papel === "default") {
+            setVisao("minhas");
+            carregarMinhasPropostas();
+          } else if (recebidasAberto) {
+            carregarRecebidas();
+          }
+        }}
+      />
+
+      <Dialog open={recebidasAberto} onOpenChange={setRecebidasAberto}>
+        <DialogContent className="sm:max-w-4xl p-5">
+          <DialogHeader>
+            <DialogTitle>Sugestões recebidas</DialogTitle>
+            <DialogDescription>
+              Trabalhe sobre os rascunhos enviados e converta-os em
+              planejamentos oficiais.
+            </DialogDescription>
+          </DialogHeader>
+          <PropostasTabela
+            propostas={recebidasPropostas}
+            modo="recebidas"
+            usuarioId={usuario?.id}
+            ehGestor={true}
+            onEditar={abrirEdicaoSugestao}
+            onEnviar={() => {}}
+            onConverter={handleConverterSugestao}
+          />
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

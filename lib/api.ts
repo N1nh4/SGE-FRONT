@@ -570,3 +570,110 @@ export async function marcarNotificacaoLida(id: number): Promise<Notificacao> {
 export async function marcarTodasNotificacoesLidas(): Promise<void> {
   await apiFetch("/api/notificacoes/ler-todas", { method: "POST" });
 }
+
+// ---------------------------------------------------------------------------
+// Propostas de Planejamento
+// ---------------------------------------------------------------------------
+
+export type PropostaEtapa = {
+  id: number | null;
+  nome: string;
+};
+
+export type PropostaIndicador = {
+  id: number | null;
+  nome: string | null;
+  meta: string | null;
+  rotulo_x: string | null;
+  rotulo_y: string | null;
+  orientacao: string | null;
+  prazo: string | null;
+  unidades: UnidadeResumo[];
+  etapas: PropostaEtapa[];
+};
+
+export type Proposta = {
+  id: number;
+  nome: string | null;
+  enviado: boolean;
+  criado_por: number | null;
+  criador: { id: number; nome: string } | null;
+  criado_at: string;
+  atualizado_at: string;
+  objetivo: ObjetivoResumo | null;
+  indicadores: PropostaIndicador[];
+};
+
+export type NovoPropostaIndicador = {
+  id?: number | null;
+  nome?: string | null;
+  meta?: string | null;
+  rotulo_x?: string | null;
+  rotulo_y?: string | null;
+  orientacao?: string | null;
+  prazo?: string | null;
+  unidade_ids: number[];
+  etapas: { nome: string }[];
+};
+
+export type NovaProposta = {
+  nome?: string | null;
+  objetivo_id?: number | null;
+  indicadores: NovoPropostaIndicador[];
+};
+
+export async function fetchMinhasPropostas(): Promise<Proposta[]> {
+  return (await apiFetch<Proposta[]>("/api/propostas/mine")) ?? [];
+}
+
+export async function fetchPropostasPendentes(): Promise<Proposta[]> {
+  return (await apiFetch<Proposta[]>("/api/propostas/pending")) ?? [];
+}
+
+export async function fetchPropostaById(id: number): Promise<Proposta> {
+  const detalhe = await apiFetch<Proposta>(`/api/propostas/${id}`);
+  if (!detalhe) throw new Error("Proposta não encontrada");
+  return detalhe;
+}
+
+export async function criarProposta(
+  dados: NovaProposta,
+): Promise<Proposta> {
+  const criada = await apiFetch<Proposta>("/api/propostas", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(dados),
+  });
+  if (!criada) throw new Error("Resposta vazia ao criar proposta");
+  return criada;
+}
+
+export async function atualizarProposta(
+  id: number,
+  dados: NovaProposta,
+): Promise<Proposta> {
+  const atualizada = await apiFetch<Proposta>(`/api/propostas/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(dados),
+  });
+  if (!atualizada) throw new Error("Resposta vazia ao atualizar proposta");
+  return atualizada;
+}
+
+export async function enviarProposta(id: number): Promise<Proposta> {
+  const enviada = await apiFetch<Proposta>(`/api/propostas/${id}/enviar`, {
+    method: "POST",
+  });
+  if (!enviada) throw new Error("Resposta vazia ao enviar proposta");
+  return enviada;
+}
+
+export async function converterProposta(id: number): Promise<Planejamento> {
+  const convertido = await apiFetch<Planejamento>(
+    `/api/propostas/${id}/converter`,
+    { method: "POST" },
+  );
+  if (!convertido) throw new Error("Resposta vazia ao converter proposta");
+  return convertido;
+}
