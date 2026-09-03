@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ClipboardCheck } from "lucide-react";
-import { HeaderBell } from "@/components/notificacoes/header-bell";
 import { fetchUnidades, type Unidade } from "@/lib/api";
 
 const MESES = [
@@ -37,19 +36,6 @@ export function Validacao() {
 
   return (
     <>
-      <header className="flex items-center justify-between gap-4 border-b px-8 py-6 h-16">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Validação de Comprovações
-          </h1>
-          {/* <p className="text-sm text-muted-foreground">
-            Selecione o período e a unidade para validar as comprovações
-            enviadas.
-          </p> */}
-        </div>
-        <HeaderBell />
-      </header>
-
       <main className="flex flex-1 flex-col gap-6 bg-cinza-claro p-8">
         <section className="flex flex-wrap items-end gap-4 rounded-xl border bg-card p-5">
           <div className="flex items-center gap-1.5">

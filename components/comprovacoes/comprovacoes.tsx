@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search, Eye } from "lucide-react";
-import { HeaderBell } from "@/components/notificacoes/header-bell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Pagination } from "@/components/ui/pagination";
 import {
   fetchPlanejamento,
   fetchComprovacoes,
@@ -124,6 +124,7 @@ export function Comprovacoes() {
   const [carregando, setCarregando] = useState(true);
   const [filtroStatus, setFiltroStatus] = useState<string>("todos");
   const [busca, setBusca] = useState("");
+  const [paginaAtual, setPaginaAtual] = useState(1);
 
   useEffect(() => {
     async function carregar() {
@@ -190,6 +191,21 @@ export function Comprovacoes() {
     });
   }, [linhas, filtroStatus, busca]);
 
+  const ITENS_POR_PAGINA = 7;
+  const totalPaginas = Math.max(
+    1,
+    Math.ceil(linhasFiltradas.length / ITENS_POR_PAGINA),
+  );
+  const paginaSegura = Math.min(paginaAtual, totalPaginas);
+  const linhasVisiveis = useMemo(() => {
+    const inicio = (paginaSegura - 1) * ITENS_POR_PAGINA;
+    return linhasFiltradas.slice(inicio, inicio + ITENS_POR_PAGINA);
+  }, [linhasFiltradas, paginaSegura]);
+
+  useEffect(() => {
+    setPaginaAtual(1);
+  }, [filtroStatus, busca]);
+
   const totalIndicadores = linhas.length;
   const aprovados = linhas.filter(
     (l) => l.statusConsolidado === "aprovado",
@@ -203,18 +219,6 @@ export function Comprovacoes() {
 
   return (
     <>
-      <header className="flex items-center justify-between gap-4 border-b px-8 py-6 h-16">
-        <div className="flex ">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Comprovações
-          </h1>
-          {/* <p className="text-sm text-muted-foreground">
-            Acompanhe o status das comprovações de cada meta.
-          </p> */}
-        </div>
-        <HeaderBell />
-      </header>
-
       <main className="flex-1 bg-cinza-claro p-8">
         <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
           <div className="rounded-xl border bg-card p-4">
@@ -277,19 +281,19 @@ export function Comprovacoes() {
         </div>
 
         <div className="overflow-x-auto rounded-xl border bg-card">
-          <table className="w-full text-sm">
+          <table className="w-full table-fixed text-sm">
             <thead>
               <tr className="border-b bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
-                <th className="px-5 py-3 font-medium">Código</th>
-                <th className="px-5 py-3 font-medium">Meta</th>
-                <th className="px-5 py-3 font-medium">Orientação</th>
-                <th className="px-5 py-3 font-medium">Responsável</th>
-                <th className="px-5 py-3 font-medium">Status</th>
-                <th className="px-5 py-3 text-right font-medium">Ações</th>
+                <th className="w-[10%] px-5 py-3 font-medium">Código</th>
+                <th className="w-[22%] px-5 py-3 font-medium">Meta</th>
+                <th className="w-[30%] px-5 py-3 font-medium">Orientação</th>
+                <th className="w-[14%] px-5 py-3 font-medium">Responsável</th>
+                <th className="w-[15%] px-5 py-3 font-medium">Status</th>
+                <th className="w-[9%] px-5 py-3 text-right font-medium">Ações</th>
               </tr>
             </thead>
             <tbody>
-              {linhasFiltradas.map((linha) => (
+              {linhasVisiveis.map((linha) => (
                 <tr
                   key={linha.indicador.id}
                   className="border-b last:border-0 transition-colors hover:bg-muted/50"
@@ -366,6 +370,14 @@ export function Comprovacoes() {
             </tbody>
           </table>
         </div>
+        <Pagination
+          paginaAtual={paginaSegura}
+          totalPaginas={totalPaginas}
+          totalItens={linhasFiltradas.length}
+          itensPorPagina={ITENS_POR_PAGINA}
+          rotuloItensPlural="comprovações"
+          onMudarPagina={setPaginaAtual}
+        />
       </main>
     </>
   );

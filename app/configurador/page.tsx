@@ -3,7 +3,7 @@ import { Configuracoes } from "@/components/configuracoes/configuracoes";
 
 export default function Page() {
   return (
-    <ProtectedLayout>
+    <ProtectedLayout titulo="Configurações de Acesso">
       <Configuracoes />
     </ProtectedLayout>
   );

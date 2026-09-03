@@ -1,9 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import Link from "next/link";
 import {
-  ArrowLeft,
   ExternalLink,
   FileText,
   LoaderCircle,
@@ -11,7 +9,6 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
-import { HeaderBell } from "@/components/notificacoes/header-bell";
 import { Button } from "@/components/ui/button";
 import { usePermissoes } from "@/lib/use-permissoes";
 import { Input } from "@/components/ui/input";
@@ -142,23 +139,11 @@ export function PaginaComprovacoes({
 
   if (erro) {
     return (
-      <>
-        <header className="flex items-center justify-between gap-4 border-b px-8 py-6 h-16">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
-              Comprovações
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Não foi possível carregar os dados.
-            </p>
-          </div>
-        </header>
-        <main className="flex-1 bg-cinza-claro p-8">
-          <div className="rounded-xl border bg-card p-10 text-center text-sm text-muted-foreground">
-            Indicador não encontrado ou backend indisponível.
-          </div>
-        </main>
-      </>
+      <main className="flex-1 bg-cinza-claro p-8">
+        <div className="rounded-xl border bg-card p-10 text-center text-sm text-muted-foreground">
+          Indicador não encontrado ou backend indisponível.
+        </div>
+      </main>
     );
   }
 
@@ -173,27 +158,7 @@ export function PaginaComprovacoes({
   }
 
   return (
-    <>
-      <header className="flex items-center justify-between gap-4 border-b px-8 py-6">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="icon"
-            render={<Link href={`/planejamento/${planejamentoId}`} />}
-          >
-            <ArrowLeft />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
-              Comprovações
-            </h1>
-            <p className="text-sm text-muted-foreground">{indicador.nome}</p>
-          </div>
-        </div>
-        <HeaderBell />
-      </header>
-
-      <main className="flex flex-1 flex-col gap-6 bg-cinza-claro p-8">
+    <main className="flex flex-1 flex-col gap-6 bg-cinza-claro p-8">
         <section className="rounded-xl border bg-card">
           <div className="flex flex-col gap-4 p-5">
             <div className="flex items-center justify-between gap-2">
@@ -349,6 +314,5 @@ export function PaginaComprovacoes({
           </div>
         </section>
       </main>
-    </>
   );
 }

@@ -3,7 +3,7 @@ import { Comprovacoes } from "@/components/comprovacoes/comprovacoes";
 
 export default function Page() {
   return (
-    <ProtectedLayout>
+    <ProtectedLayout titulo="Comprovações">
       <Comprovacoes />
     </ProtectedLayout>
   );

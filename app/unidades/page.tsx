@@ -3,7 +3,7 @@ import { Unidades } from "@/components/unidades/unidades";
 
 export default function Page() {
   return (
-    <ProtectedLayout>
+    <ProtectedLayout titulo="Unidades">
       <Unidades />
     </ProtectedLayout>
   );

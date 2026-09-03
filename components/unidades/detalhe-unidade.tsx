@@ -1,9 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import Link from "next/link";
 import {
-  ArrowLeft,
   Building2,
   LoaderCircle,
   Lock,
@@ -13,7 +11,6 @@ import {
   Trash2,
   User,
 } from "lucide-react";
-import { HeaderBell } from "@/components/notificacoes/header-bell";
 import { Button } from "@/components/ui/button";
 import { usePermissoes } from "@/lib/use-permissoes";
 import {
@@ -137,48 +134,16 @@ export function DetalheUnidade({ unidadeId }: { unidadeId: number }) {
 
   if (erro) {
     return (
-      <>
-        <header className="flex items-center justify-between gap-4 border-b px-8 py-6">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Unidade</h1>
-            <p className="text-sm text-muted-foreground">
-              Não foi possível carregar os dados desta unidade.
-            </p>
-          </div>
-        </header>
       <main className="flex-1 bg-cinza-claro px-8 pt-4 pb-8">
-          <div className="rounded-xl border bg-card p-10 text-center text-sm text-muted-foreground">
-            Unidade não encontrada ou backend indisponível.
-          </div>
-        </main>
-      </>
+        <div className="rounded-xl border bg-card p-10 text-center text-sm text-muted-foreground">
+          Unidade não encontrada ou backend indisponível.
+        </div>
+      </main>
     );
   }
 
   return (
     <>
-      <header className="flex items-center justify-between gap-4 border-b px-8 py-6">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="icon"
-            render={<Link href="/unidades" />}
-            aria-label="Voltar"
-          >
-            <ArrowLeft />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
-              {unidade?.nome ?? "Unidade"}
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Gerencie os colaboradores desta unidade.
-            </p>
-          </div>
-        </div>
-        <HeaderBell />
-      </header>
-
       <main className="flex-1 bg-cinza-claro p-8">
         <div className="mb-4 flex justify-end">
           {pode("/unidades", "criar") && (
@@ -208,14 +173,14 @@ export function DetalheUnidade({ unidadeId }: { unidadeId: number }) {
         </div>
 
         <div className="mt-6 overflow-x-auto rounded-xl border bg-card">
-          <table className="w-full text-sm">
+          <table className="w-full table-fixed text-sm">
             <thead>
               <tr className="border-b bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
-                <th className="px-5 py-3 font-medium">Nome</th>
-                <th className="px-5 py-3 font-medium">E-mail</th>
-                <th className="px-5 py-3 font-medium">Papel</th>
-                <th className="px-5 py-3 font-medium">Status</th>
-                <th className="px-5 py-3 font-medium">Ações</th>
+                <th className="w-[25%] px-5 py-3 font-medium">Nome</th>
+                <th className="w-[35%] px-5 py-3 font-medium">E-mail</th>
+                <th className="w-[15%] px-5 py-3 font-medium">Papel</th>
+                <th className="w-[15%] px-5 py-3 font-medium">Status</th>
+                <th className="w-[10%] px-5 py-3 font-medium">Ações</th>
               </tr>
             </thead>
             <tbody>

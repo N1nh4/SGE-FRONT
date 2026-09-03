@@ -1,10 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft,
   CalendarDays,
   ChartNoAxesCombined,
   Paperclip,
@@ -12,7 +10,6 @@ import {
   Target,
   User,
 } from "lucide-react";
-import { HeaderBell } from "@/components/notificacoes/header-bell";
 import { Button } from "@/components/ui/button";
 import {
   fetchPlanejamentoById,
@@ -38,23 +35,11 @@ export function DetalhePlanejamento({ id }: { id: number }) {
 
   if (erro) {
     return (
-      <>
-        <header className="flex items-center justify-between gap-4 border-b px-8 py-6 h-16">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
-              Detalhes do Planejamento
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Não foi possível carregar os dados deste planejamento.
-            </p>
-          </div>
-        </header>
-        <main className="flex-1 bg-cinza-claro p-8">
-          <div className="rounded-xl border bg-card p-10 text-center text-sm text-muted-foreground">
-            Planejamento não encontrado ou backend indisponível.
-          </div>
-        </main>
-      </>
+      <main className="flex-1 bg-cinza-claro p-8">
+        <div className="rounded-xl border bg-card p-10 text-center text-sm text-muted-foreground">
+          Planejamento não encontrado ou backend indisponível.
+        </div>
+      </main>
     );
   }
 
@@ -69,26 +54,7 @@ export function DetalhePlanejamento({ id }: { id: number }) {
   }
 
   return (
-    <>
-      <header className="flex items-center justify-between gap-4 border-b px-8 py-6">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="icon"
-            render={<Link href="/planejamento" />}
-          >
-            <ArrowLeft />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
-              Detalhes do Planejamento Estratégico
-            </h1>
-          </div>
-        </div>
-        <HeaderBell />
-      </header>
-
-      <main className="flex flex-1 flex-col gap-6 bg-cinza-claro p-8">
+    <main className="flex flex-1 flex-col gap-6 bg-cinza-claro p-8">
         <section className="rounded-xl border bg-card">
           <div className="flex items-center gap-2 border-b px-5 py-4">
             <Target className="h-4 w-4 text-bege" />
@@ -214,6 +180,5 @@ export function DetalhePlanejamento({ id }: { id: number }) {
           )}
         </section>
       </main>
-    </>
   );
 }

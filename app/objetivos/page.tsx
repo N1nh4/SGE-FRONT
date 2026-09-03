@@ -3,7 +3,7 @@ import { Objetivos } from "@/components/objetivos/objetivos";
 
 export default function Page() {
   return (
-    <ProtectedLayout>
+    <ProtectedLayout titulo="Objetivos Estratégicos">
       <Objetivos />
     </ProtectedLayout>
   );

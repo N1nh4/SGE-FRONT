@@ -1,5 +1,17 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
+function obterTokenAuth(): string | null {
+  if (typeof window === "undefined") return null;
+  const salvo = localStorage.getItem("auth");
+  if (!salvo) return null;
+  try {
+    const parsed = JSON.parse(salvo) as { token?: string };
+    return parsed.token ?? null;
+  } catch {
+    return null;
+  }
+}
+
 function authHeaders(): Record<string, string> {
   if (typeof window === "undefined") return {};
   const salvo = localStorage.getItem("auth");
@@ -532,6 +544,18 @@ export async function fetchNotificacoesQuantidade(): Promise<number> {
     "/api/notificacoes/quantidade",
   );
   return r?.quantidade ?? 0;
+}
+
+export function assinarNotificacoes(
+  onAtualizar: () => void,
+): () => void {
+  const token = obterTokenAuth();
+  if (!token) return () => {};
+
+  const url = `${API_URL}/api/notificacoes/stream?token=${encodeURIComponent(token)}`;
+  const source = new EventSource(url);
+  source.addEventListener("atualizar", onAtualizar);
+  return () => source.close();
 }
 
 export async function marcarNotificacaoLida(id: number): Promise<Notificacao> {

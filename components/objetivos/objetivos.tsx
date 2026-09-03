@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { CalendarDays, Pencil, Plus, Trash } from "lucide-react";
 import Masonry from "react-masonry-css";
-import { HeaderBell } from "@/components/notificacoes/header-bell";
 import { Button } from "@/components/ui/button";
+import { Pagination } from "@/components/ui/pagination";
 import { usePermissoes } from "@/lib/use-permissoes";
 import {
   Dialog,
@@ -54,6 +54,8 @@ export function Objetivos() {
   const [nome, setNome] = useState("");
   const [ppa, setPpa] = useState("");
   const [loa, setLoa] = useState("");
+  const [paginaAtual, setPaginaAtual] = useState(1);
+  const ITENS_POR_PAGINA = 7;
 
   useEffect(() => {
     fetchObjetivos()
@@ -121,20 +123,24 @@ export function Objetivos() {
       toast.error("Erro ao excluir o objetivo.");
     }
     setObjetivos((prev) => prev.filter((o) => o.id !== id));
+    setPaginaAtual((prev) =>
+      Math.min(
+        prev,
+        Math.max(1, Math.ceil((objetivos.length - 1) / ITENS_POR_PAGINA)),
+      ),
+    );
     setExcluindo(null);
   }
 
+  const totalPaginas = Math.max(1, Math.ceil(objetivos.length / ITENS_POR_PAGINA));
+  const paginaSegura = Math.min(paginaAtual, totalPaginas);
+  const objetivosVisiveis = useMemo(() => {
+    const inicio = (paginaSegura - 1) * ITENS_POR_PAGINA;
+    return objetivos.slice(inicio, inicio + ITENS_POR_PAGINA);
+  }, [objetivos, paginaSegura]);
+
   return (
     <>
-      <header className="flex items-center justify-between gap-4 border-b px-8 py-6 h-16">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Objetivos Estratégicos
-          </h1>
-        </div>
-        <HeaderBell />
-      </header>
-
       <main className="flex-1 bg-cinza-claro px-8 pt-4 pb-8">
         <div className="mb-4 flex justify-end">
           {pode("/objetivos", "criar") && (
@@ -152,7 +158,7 @@ export function Objetivos() {
           className="flex w-auto -ml-4"
           columnClassName="bg-clip-padding pl-4"
         >
-          {objetivos.map((objetivo) => (
+          {objetivosVisiveis.map((objetivo) => (
             <article
               key={objetivo.id}
               className="mb-4 flex flex-col rounded-xl border bg-card p-5 shadow-sm transition-shadow hover:shadow-md"
@@ -203,6 +209,14 @@ export function Objetivos() {
             </article>
           ))}
         </Masonry>
+        <Pagination
+          paginaAtual={paginaSegura}
+          totalPaginas={totalPaginas}
+          totalItens={objetivos.length}
+          itensPorPagina={ITENS_POR_PAGINA}
+          rotuloItensPlural="objetivos"
+          onMudarPagina={setPaginaAtual}
+        />
       </main>
 
       <Dialog open={open} onOpenChange={setOpen}>

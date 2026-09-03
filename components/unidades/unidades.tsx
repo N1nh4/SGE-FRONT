@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import {
   CalendarDays,
@@ -10,8 +10,8 @@ import {
   Plus,
   Trash,
 } from "lucide-react";
-import { HeaderBell } from "@/components/notificacoes/header-bell";
 import { Button } from "@/components/ui/button";
+import { Pagination } from "@/components/ui/pagination";
 import { usePermissoes } from "@/lib/use-permissoes";
 import {
   Dialog,
@@ -58,6 +58,8 @@ export function Unidades() {
   const [excluindo, setExcluindo] = useState<Unidade | null>(null);
   const [nome, setNome] = useState("");
   const [salvando, setSalvando] = useState(false);
+  const [paginaAtual, setPaginaAtual] = useState(1);
+  const ITENS_POR_PAGINA = 7;
 
   useEffect(() => {
     let ativo = true;
@@ -130,6 +132,12 @@ export function Unidades() {
     try {
       await deleteUnidade(excluindo.id);
       setUnidades((prev) => prev.filter((u) => u.id !== excluindo.id));
+      setPaginaAtual((prev) =>
+        Math.min(
+          prev,
+          Math.max(1, Math.ceil((unidades.length - 1) / ITENS_POR_PAGINA)),
+        ),
+      );
       toast.success("Unidade excluída com sucesso.");
     } catch {
       toast.error("Erro ao excluir a unidade.");
@@ -137,15 +145,15 @@ export function Unidades() {
     setExcluindo(null);
   }
 
+  const totalPaginas = Math.max(1, Math.ceil(unidades.length / ITENS_POR_PAGINA));
+  const paginaSegura = Math.min(paginaAtual, totalPaginas);
+  const unidadesVisiveis = useMemo(() => {
+    const inicio = (paginaSegura - 1) * ITENS_POR_PAGINA;
+    return unidades.slice(inicio, inicio + ITENS_POR_PAGINA);
+  }, [unidades, paginaSegura]);
+
   return (
     <>
-      <header className="flex items-center justify-between gap-4 border-b px-8 py-6 h-16">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Unidades</h1>
-        </div>
-        <HeaderBell />
-      </header>
-
       <main className="flex-1 bg-cinza-claro px-8 pt-4 pb-8">
         <div className="mb-4 flex justify-end">
           {pode("/unidades", "criar") && (
@@ -168,7 +176,7 @@ export function Unidades() {
           </p>
         ) : (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] items-start gap-6">
-            {unidades.map((unidade) => (
+            {unidadesVisiveis.map((unidade) => (
               <article
                 key={unidade.id}
                 className="flex flex-col rounded-xl border bg-card p-5 shadow-sm transition-shadow hover:shadow-md"
@@ -220,6 +228,14 @@ export function Unidades() {
             ))}
           </div>
         )}
+        <Pagination
+          paginaAtual={paginaSegura}
+          totalPaginas={totalPaginas}
+          totalItens={unidades.length}
+          itensPorPagina={ITENS_POR_PAGINA}
+          rotuloItensPlural="unidades"
+          onMudarPagina={setPaginaAtual}
+        />
       </main>
 
       <Dialog open={open} onOpenChange={setOpen}>

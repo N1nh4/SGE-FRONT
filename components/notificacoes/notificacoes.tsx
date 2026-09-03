@@ -10,7 +10,6 @@ import {
   Inbox,
   Target,
 } from "lucide-react";
-import { HeaderBell } from "@/components/notificacoes/header-bell";
 import { Button } from "@/components/ui/button";
 import { useNotificacoes } from "@/context/notification-context";
 import { usePermissoes } from "@/lib/use-permissoes";
@@ -89,13 +88,8 @@ export function Notificacao() {
 
   return (
     <>
-      <header className="flex h-16 items-center justify-between gap-4 border-b px-8 py-6">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Notificações
-          </h1>
-        </div>
-        <div className="flex items-center gap-2">
+      <main className="flex flex-1 flex-col bg-cinza-claro p-8">
+        <div className="mb-6 flex flex-wrap items-center gap-2">
           {podeLer && (
             <Button
               variant="outline"
@@ -107,17 +101,14 @@ export function Notificacao() {
               Marcar todas como lidas
             </Button>
           )}
-          <HeaderBell />
-        </div>
-      </header>
-
-      <main className="flex flex-1 flex-col bg-cinza-claro p-8">
-        <div className="mb-6 flex flex-wrap items-center gap-2">
           {(
             [
               { chave: "todas", rotulo: `Todas (${notificacoes.length})` },
               { chave: "nao-lidas", rotulo: `Não lidas (${naoLidas})` },
-              { chave: "lidas", rotulo: `Lidas` },
+              {
+                chave: "lidas",
+                rotulo: `Lidas (${notificacoes.length - naoLidas})`,
+              },
             ] as const
           ).map((aba) => (
             <Button

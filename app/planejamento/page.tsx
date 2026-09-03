@@ -3,7 +3,7 @@ import { Planejamento } from "@/components/planejamento/planejamento";
 
 export default function Page() {
   return (
-    <ProtectedLayout>
+    <ProtectedLayout titulo="Planejamento">
       <Planejamento />
     </ProtectedLayout>
   );

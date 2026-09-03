@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/auth-context";
 import { Sidebar } from "@/components/sidebar";
+import { PageHeader } from "@/components/page-header";
 import { SelecaoUnidade } from "@/components/selecao-unidade/selecao-unidade";
 import type { PaginaComAcoes } from "@/lib/api";
 
@@ -21,8 +22,14 @@ function getFirstAllowedPage(paginas: PaginaComAcoes[] | undefined): string {
 }
 
 export function ProtectedLayout({
+  titulo,
+  subtitulo,
+  headerAcoes,
   children,
 }: {
+  titulo?: string;
+  subtitulo?: string;
+  headerAcoes?: ReactNode;
   children: React.ReactNode;
 }) {
   const { usuario, unidades, unidadeId, carregando, saiu } = useAuth();
@@ -69,7 +76,12 @@ export function ProtectedLayout({
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <div className="flex flex-1 flex-col">{children}</div>
+      <div className="flex flex-1 flex-col">
+        {titulo && (
+          <PageHeader titulo={titulo} subtitulo={subtitulo} acoes={headerAcoes} />
+        )}
+        {children}
+      </div>
     </div>
   );
 }

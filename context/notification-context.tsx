@@ -11,6 +11,7 @@ import {
 } from "react";
 import { useAuth } from "@/context/auth-context";
 import {
+  assinarNotificacoes,
   fetchNotificacoesQuantidade,
   marcarNotificacaoLida,
   marcarTodasNotificacoesLidas,
@@ -50,7 +51,15 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         .then(setNaoLidas)
         .catch(() => {});
     }, 30000);
-    return () => clearInterval(intervalo);
+    const fecharStream = assinarNotificacoes(() => {
+      fetchNotificacoesQuantidade()
+        .then(setNaoLidas)
+        .catch(() => {});
+    });
+    return () => {
+      clearInterval(intervalo);
+      fecharStream();
+    };
   }, [token]);
 
   const marcarLida = useCallback(

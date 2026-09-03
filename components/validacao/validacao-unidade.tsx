@@ -1,9 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { ArrowLeft, Building2, Eye, LoaderCircle, Search } from "lucide-react";
-import { HeaderBell } from "@/components/notificacoes/header-bell";
+import { Eye, LoaderCircle, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -184,34 +182,7 @@ export function ValidacaoUnidade({
   const pendentes = linhas.filter((l) => l.status === "sem_comprovante").length;
 
   return (
-    <>
-      <header className="flex items-center justify-between gap-4 border-b px-8 py-6 h-16">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="icon"
-            render={<Link href="/validacao" />}
-            aria-label="Voltar"
-          >
-            <ArrowLeft />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
-              {unidade?.nome ?? "Unidade"}
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              {MESES[mes - 1]} de {ano}
-            </p>
-          </div>
-        </div>
-        <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-          <Building2 className="h-3.5 w-3.5" />
-          {unidade?.nome ?? "Unidade"}
-        </span>
-        <HeaderBell />
-      </header>
-
-      <main className="flex-1 bg-cinza-claro p-8">
+    <main className="flex-1 bg-cinza-claro p-8">
         {carregando && (
           <div className="flex items-center justify-center gap-3 py-16 text-sm text-muted-foreground">
             <LoaderCircle className="h-5 w-5 animate-spin" />
@@ -290,14 +261,14 @@ export function ValidacaoUnidade({
             </div>
 
             <div className="overflow-x-auto rounded-xl border bg-card">
-              <table className="w-full text-sm">
+              <table className="w-full table-fixed text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
-                    <th className="px-5 py-3 font-medium">Código</th>
-                    <th className="px-5 py-3 font-medium">Iniciativa</th>
-                    <th className="px-5 py-3 font-medium">Meta</th>
-                    <th className="px-5 py-3 font-medium">Status</th>
-                    <th className="px-5 py-3 text-right font-medium">Ações</th>
+                    <th className="w-[12%] px-5 py-3 font-medium">Código</th>
+                    <th className="w-[28%] px-5 py-3 font-medium">Iniciativa</th>
+                    <th className="w-[32%] px-5 py-3 font-medium">Meta</th>
+                    <th className="w-[15%] px-5 py-3 font-medium">Status</th>
+                    <th className="w-[13%] px-5 py-3 text-right font-medium">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -362,6 +333,5 @@ export function ValidacaoUnidade({
           </>
         )}
       </main>
-    </>
   );
 }

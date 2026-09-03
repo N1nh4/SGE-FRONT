@@ -3,7 +3,7 @@ import { Validacao } from "@/components/validacao/validacao";
 
 export default function Page() {
   return (
-    <ProtectedLayout>
+    <ProtectedLayout titulo="Validação de Comprovações">
       <Validacao />
     </ProtectedLayout>
   );

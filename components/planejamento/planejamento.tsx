@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import {
   Check,
@@ -10,7 +10,6 @@ import {
   Plus,
   Trash,
 } from "lucide-react";
-import { HeaderBell } from "@/components/notificacoes/header-bell";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,6 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Pagination } from "@/components/ui/pagination";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -107,12 +107,21 @@ export function Planejamento() {
   const [dropdownAberto, setDropdownAberto] = useState<number | null>(null);
   const [buscaUnidade, setBuscaUnidade] = useState("");
   const [etapaForm, setEtapaForm] = useState<1 | 2>(1);
+  const [paginaAtual, setPaginaAtual] = useState(1);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const ITENS_POR_PAGINA = 7;
 
   const unidadesResponsaveis =
     usuario?.papel === "default" && unidadeId != null
       ? unidades.filter((u) => u.id === unidadeId)
       : unidades;
+
+  const totalPaginas = Math.max(1, Math.ceil(itens.length / ITENS_POR_PAGINA));
+  const paginaSegura = Math.min(paginaAtual, totalPaginas);
+  const paginasVisiveis = useMemo(() => {
+    const inicio = (paginaSegura - 1) * ITENS_POR_PAGINA;
+    return itens.slice(inicio, inicio + ITENS_POR_PAGINA);
+  }, [itens, paginaSegura]);
 
   useEffect(() => {
     function handleClickFora(event: MouseEvent) {
@@ -321,6 +330,12 @@ export function Planejamento() {
     try {
       await deletePlanejamento(excluindo.id);
       setItens((prev) => prev.filter((item) => item.id !== excluindo.id));
+      setPaginaAtual((prev) =>
+        Math.min(
+          prev,
+          Math.max(1, Math.ceil((itens.length - 1) / ITENS_POR_PAGINA)),
+        ),
+      );
       toast.success("Planejamento excluído com sucesso.");
     } catch {
       toast.error("Erro ao excluir o planejamento.");
@@ -330,15 +345,6 @@ export function Planejamento() {
 
   return (
     <>
-      <header className="flex items-center justify-between gap-4 border-b px-8 py-6 h-16">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Planejamento
-          </h1>
-        </div>
-        <HeaderBell />
-      </header>
-
       <main className="flex-1 bg-cinza-claro px-8 pt-4 pb-8">
         <div className="mb-4 flex items-center justify-end gap-2">
           {podeRelatorio && (
@@ -362,20 +368,22 @@ export function Planejamento() {
           )}
         </div>
         <div className="overflow-x-auto rounded-xl border bg-card">
-          <table className="w-full text-sm">
+          <table className="w-full table-fixed text-sm">
             <thead>
               <tr className="border-b bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
-                <th className="px-5 py-3 font-medium">Código</th>
-                <th className="px-5 py-3 font-medium">Objetivo</th>
-                <th className="px-5 py-3 font-medium">Iniciativa</th>
-                <th className="px-5 py-3 font-medium">Progresso</th>
+                <th className="w-[5%] px-5 py-3 font-medium">Código</th>
+                <th className="w-[20%] px-5 py-3 font-medium">Objetivo</th>
+                <th className="w-[50%] px-5 py-3 font-medium">Iniciativa</th>
+                <th className="w-[15%] px-5 py-3 font-medium">Progresso</th>
                 {podeEditar && (
-                  <th className="px-5 py-3 text-right font-medium">Ações</th>
+                  <th className="w-[10%] px-5 py-3 text-right font-medium">
+                    Ações
+                  </th>
                 )}
               </tr>
             </thead>
             <tbody>
-              {itens.map((item) => (
+              {paginasVisiveis.map((item) => (
                 <tr
                   key={item.id}
                   onClick={() => router.push(`/planejamento/${item.id}`)}
@@ -452,6 +460,14 @@ export function Planejamento() {
             </tbody>
           </table>
         </div>
+        <Pagination
+          paginaAtual={paginaSegura}
+          totalPaginas={totalPaginas}
+          totalItens={itens.length}
+          itensPorPagina={ITENS_POR_PAGINA}
+          rotuloItensPlural="planejamentos"
+          onMudarPagina={setPaginaAtual}
+        />
       </main>
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -790,12 +806,12 @@ export function Planejamento() {
                                       : (() => {
                                           const selecionadas =
                                             unidadesResponsaveis
-                                            .filter((u) =>
-                                              indicador.unidadeIds.includes(
-                                                String(u.id),
-                                              ),
-                                            )
-                                            .map((u) => u.nome);
+                                              .filter((u) =>
+                                                indicador.unidadeIds.includes(
+                                                  String(u.id),
+                                                ),
+                                              )
+                                              .map((u) => u.nome);
                                           if (selecionadas.length <= 3)
                                             return selecionadas.join(", ");
                                           return `${selecionadas.slice(0, 3).join(", ")} +${selecionadas.length - 3}`;
@@ -830,8 +846,8 @@ export function Planejamento() {
                                             type="button"
                                             onClick={() => {
                                               const todosIds =
-                                                unidadesResponsaveis.map(
-                                                  (u) => String(u.id),
+                                                unidadesResponsaveis.map((u) =>
+                                                  String(u.id),
                                                 );
                                               const todasSelecionadas =
                                                 indicador.unidadeIds.length ===
