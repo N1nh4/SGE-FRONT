@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Bell,
   Check,
@@ -37,6 +38,7 @@ function formatarData(iso: string): string {
 export function Notificacao() {
   const { pode } = usePermissoes();
   const podeLer = pode("/notificacoes", "ler");
+  const router = useRouter();
   const { naoLidas, marcarLida, marcarTodasLidas } = useNotificacoes();
   const [notificacoes, setNotificacoes] = useState<Notificacao[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -77,6 +79,38 @@ export function Notificacao() {
       setNotificacoes((prev) =>
         prev.map((n) => (n.id === id ? { ...n, lida: true } : n)),
       );
+    });
+  }
+
+  function rotaPara(notificacao: Notificacao): string {
+    switch (notificacao.tipo) {
+      case "proposta":
+        return "/planejamento?tela=recebidas";
+      case "planejamento":
+        return notificacao.entidade_id
+          ? `/planejamento/${notificacao.entidade_id}`
+          : "/planejamento";
+      case "comprovacao":
+        return "/comprovacoes";
+      case "validacao":
+        return "/validacao";
+      case "objetivo":
+        return "/objetivos";
+      default:
+        return "/notificacoes";
+    }
+  }
+
+  function abrirNotificacao(notificacao: Notificacao) {
+    if (notificacao.lida) {
+      router.push(rotaPara(notificacao));
+      return;
+    }
+    marcarLida(notificacao.id).then(() => {
+      setNotificacoes((prev) =>
+        prev.map((n) => (n.id === notificacao.id ? { ...n, lida: true } : n)),
+      );
+      router.push(rotaPara(notificacao));
     });
   }
 
@@ -140,7 +174,8 @@ export function Notificacao() {
               return (
                 <article
                   key={notificacao.id}
-                  className={`flex items-start gap-4 rounded-xl border bg-card p-5 shadow-sm transition-shadow hover:shadow-md ${
+                  onClick={() => abrirNotificacao(notificacao)}
+                  className={`cursor-pointer flex items-start gap-4 rounded-xl border bg-card p-5 shadow-sm transition-shadow hover:shadow-md ${
                     naoLida ? "border-azul-escuro/30" : ""
                   }`}
                 >
@@ -180,7 +215,10 @@ export function Notificacao() {
                           type="button"
                           variant="ghost"
                           size="icon"
-                          onClick={() => marcarUma(notificacao.id)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            marcarUma(notificacao.id);
+                          }}
                           className="shrink-0 cursor-pointer"
                           title="Marcar como lida"
                         >

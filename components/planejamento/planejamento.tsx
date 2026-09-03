@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Check,
   ChevronDown,
@@ -83,6 +83,7 @@ function indicadorVazio(): IndicadorForm {
 
 export function Planejamento() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { usuario, unidadeId } = useAuth();
   const { refresh: refreshNotificacoes } = useNotificacoes();
   const podeCriar =
@@ -116,8 +117,9 @@ export function Planejamento() {
   const [buscaUnidade, setBuscaUnidade] = useState("");
   const [etapaForm, setEtapaForm] = useState<1 | 2>(1);
   const [paginaAtual, setPaginaAtual] = useState(1);
-  const [visao, setVisao] = useState<"normal" | "minhas">("normal");
-  const [recebidasAberto, setRecebidasAberto] = useState(false);
+  const [visao, setVisao] = useState<"normal" | "minhas" | "recebidas">(
+    "normal",
+  );
   const [minhasPropostas, setMinhasPropostas] = useState<Proposta[]>([]);
   const [recebidasPropostas, setRecebidasPropostas] = useState<Proposta[]>([]);
   const [formPropostaAberto, setFormPropostaAberto] = useState(false);
@@ -182,6 +184,15 @@ export function Planejamento() {
     }
   }
 
+  useEffect(() => {
+    const tela = searchParams.get("tela");
+    if (tela === "recebidas") {
+      setVisao("recebidas");
+    } else if (tela === "minhas") {
+      setVisao("minhas");
+    }
+  }, [searchParams]);
+
   async function carregarMinhasPropostas() {
     try {
       const dados = await fetchMinhasPropostas();
@@ -202,11 +213,8 @@ export function Planejamento() {
 
   useEffect(() => {
     if (visao === "minhas") carregarMinhasPropostas();
+    if (visao === "recebidas") carregarRecebidas();
   }, [visao]);
-
-  useEffect(() => {
-    if (recebidasAberto) carregarRecebidas();
-  }, [recebidasAberto]);
 
   function abrirNovaSugestao() {
     setPropostaEditando(null);
@@ -432,7 +440,7 @@ export function Planejamento() {
     <>
       <main className="flex-1 bg-cinza-claro px-8 pt-4 pb-8">
         <div className="mb-4 flex items-center justify-end gap-2">
-          {visao === "minhas" ? (
+          {visao !== "normal" ? (
             <Button
               onClick={() => setVisao("normal")}
               variant="outline"
@@ -473,7 +481,7 @@ export function Planejamento() {
                 </>
               ) : usuario?.papel ? (
                 <Button
-                  onClick={() => setRecebidasAberto(true)}
+                  onClick={() => setVisao("recebidas")}
                   variant="outline"
                   className="cursor-pointer"
                 >
@@ -509,6 +517,25 @@ export function Planejamento() {
               onEditar={abrirEdicaoSugestao}
               onEnviar={handleEnviarSugestao}
               onConverter={() => {}}
+            />
+          </>
+        ) : visao === "recebidas" ? (
+          <>
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold">Sugestões recebidas</h2>
+              <p className="text-sm text-muted-foreground">
+                Trabalhe sobre os rascunhos enviados e converta-os em
+                planejamentos oficiais.
+              </p>
+            </div>
+            <PropostasTabela
+              propostas={recebidasPropostas}
+              modo="recebidas"
+              usuarioId={usuario?.id}
+              ehGestor={true}
+              onEditar={abrirEdicaoSugestao}
+              onEnviar={() => {}}
+              onConverter={handleConverterSugestao}
             />
           </>
         ) : (
@@ -1181,32 +1208,11 @@ export function Planejamento() {
           if (usuario?.papel === "default") {
             setVisao("minhas");
             carregarMinhasPropostas();
-          } else if (recebidasAberto) {
+          } else if (visao === "recebidas") {
             carregarRecebidas();
           }
         }}
       />
-
-      <Dialog open={recebidasAberto} onOpenChange={setRecebidasAberto}>
-        <DialogContent className="sm:max-w-4xl p-5">
-          <DialogHeader>
-            <DialogTitle>Sugestões recebidas</DialogTitle>
-            <DialogDescription>
-              Trabalhe sobre os rascunhos enviados e converta-os em
-              planejamentos oficiais.
-            </DialogDescription>
-          </DialogHeader>
-          <PropostasTabela
-            propostas={recebidasPropostas}
-            modo="recebidas"
-            usuarioId={usuario?.id}
-            ehGestor={true}
-            onEditar={abrirEdicaoSugestao}
-            onEnviar={() => {}}
-            onConverter={handleConverterSugestao}
-          />
-        </DialogContent>
-      </Dialog>
     </>
   );
 }

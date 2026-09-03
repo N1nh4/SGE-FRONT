@@ -532,6 +532,7 @@ export type Notificacao = {
   titulo: string;
   mensagem: string;
   lida: boolean;
+  entidade_id: number | null;
   created_at: string;
 };
 
