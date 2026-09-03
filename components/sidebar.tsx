@@ -16,13 +16,13 @@ import { useAuth } from "@/context/auth-context";
 import { useNotificacoes } from "@/context/notification-context";
 
 const navItems = [
+  { label: "Notificações", href: "/notificacoes", icon: Bell },
   { label: "Indicadores", href: "/indicadores", icon: BarChart3 },
   { label: "Comprovações", href: "/comprovacoes", icon: FileCheck },
   { label: "Planejamento", href: "/planejamento", icon: Goal },
   { label: "Validação", href: "/validacao", icon: ClipboardCheck },
   { label: "Objetivos", href: "/objetivos", icon: Target },
   { label: "Unidades", href: "/unidades", icon: Building2 },
-  { label: "Notificações", href: "/notificacoes", icon: Bell },
 ];
 
 export function Sidebar() {

@@ -6,6 +6,7 @@ import { Search, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
+import { useAuth } from "@/context/auth-context";
 import {
   fetchPlanejamento,
   fetchComprovacoes,
@@ -120,6 +121,7 @@ function calcularStatus(
 
 export function Comprovacoes() {
   const router = useRouter();
+  const { usuario, unidadeId } = useAuth();
   const [linhas, setLinhas] = useState<IndicadorLinha[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [filtroStatus, setFiltroStatus] = useState<string>("todos");
@@ -158,12 +160,19 @@ export function Comprovacoes() {
 
         await Promise.all(promessas);
 
-        linhasNovas.sort(
+        let resultado = linhasNovas;
+        if (usuario?.papel === "default" && unidadeId != null) {
+          resultado = resultado.filter((linha) =>
+            linha.indicador.unidades.some((u) => u.id === unidadeId),
+          );
+        }
+
+        resultado.sort(
           (a, b) =>
             a.objetivo?.codigo?.localeCompare(b.objetivo?.codigo ?? "") ?? 0,
         );
 
-        setLinhas(linhasNovas);
+        setLinhas(resultado);
       } catch {
         // Backend offline
       } finally {
@@ -171,7 +180,7 @@ export function Comprovacoes() {
       }
     }
     carregar();
-  }, []);
+  }, [usuario?.papel, unidadeId]);
 
   const linhasFiltradas = useMemo(() => {
     return linhas.filter((linha) => {
