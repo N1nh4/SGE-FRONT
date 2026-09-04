@@ -16,12 +16,22 @@ import { useNotificacoes } from "@/context/notification-context";
 import { usePermissoes } from "@/lib/use-permissoes";
 import { fetchNotificacoes, type Notificacao } from "@/lib/api";
 
-type TipoNotificacao = "validacao" | "comprovacao" | "planejamento" | "objetivo";
+type TipoNotificacao =
+  | "validacao"
+  | "comprovacao"
+  | "comprovacao_aprovada"
+  | "comprovacao_rejeitada"
+  | "planejamento"
+  | "proposta"
+  | "objetivo";
 
 const ICONES: Record<TipoNotificacao, typeof Bell> = {
   validacao: ClipboardCheck,
   comprovacao: FileCheck,
+  comprovacao_aprovada: FileCheck,
+  comprovacao_rejeitada: FileCheck,
   planejamento: Target,
+  proposta: Target,
   objetivo: Bell,
 };
 
@@ -91,6 +101,8 @@ export function Notificacao() {
           ? `/planejamento/${notificacao.entidade_id}`
           : "/planejamento";
       case "comprovacao":
+      case "comprovacao_aprovada":
+      case "comprovacao_rejeitada":
         return "/comprovacoes";
       case "validacao":
         return "/validacao";

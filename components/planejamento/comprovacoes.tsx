@@ -217,7 +217,7 @@ export function PaginaComprovacoes({
                       )}
                     </div>
 
-                    {comprovacao ? (
+                    {comprovacao && comprovacao.status !== "recusado" ? (
                       <div className="flex items-center justify-between gap-3 rounded-lg border border-bege/30 bg-bege/5 p-3">
                         <div className="flex min-w-0 items-center gap-2">
                           <FileText className="h-4 w-4 shrink-0 text-bege" />
@@ -252,6 +252,101 @@ export function PaginaComprovacoes({
                             </Button>
                           )}
                         </div>
+                      </div>
+                    ) : comprovacao && comprovacao.status === "recusado" ? (
+                      <div className="flex flex-col gap-3">
+                        <div className="flex items-center justify-between gap-3 rounded-lg border border-red-300 bg-red-50 p-3">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <FileText className="h-4 w-4 shrink-0 text-red-600" />
+                            <div>
+                              <p className="truncate text-sm font-medium">
+                                {comprovacao.arquivo_nome}
+                              </p>
+                              <p className="text-xs text-red-600/80">
+                                Rejeitada em{" "}
+                                {formatarData(
+                                  comprovacao.created_at.split("T")[0],
+                                )}
+                              </p>
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => abrirArquivoComprovacao(comprovacao.id)}
+                            aria-label="Visualizar comprovação rejeitada"
+                          >
+                            <ExternalLink />
+                          </Button>
+                        </div>
+                        {comprovacao.justificativa && (
+                          <div className="rounded-lg border bg-muted/50 p-3 text-sm">
+                            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                              Justificativa
+                            </p>
+                            <p className="mt-1">{comprovacao.justificativa}</p>
+                          </div>
+                        )}
+                        {podeCriar &&
+                          (etapaSelecionada === etapa.id ? (
+                            <form
+                              onSubmit={handleUpload}
+                              className="flex flex-col gap-3"
+                            >
+                              <div className="grid gap-2">
+                                <Label htmlFor={`arquivo-${etapa.id}`}>
+                                  Novo arquivo PDF
+                                </Label>
+                                <Input
+                                  id={`arquivo-${etapa.id}`}
+                                  type="file"
+                                  accept="application/pdf"
+                                  onChange={(event) =>
+                                    setArquivo(
+                                      event.target.files?.[0] ?? null,
+                                    )
+                                  }
+                                  className="cursor-pointer"
+                                />
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  type="submit"
+                                  disabled={!arquivo || enviando}
+                                  className="cursor-pointer bg-bege hover:bg-bege/90"
+                                >
+                                  {enviando ? (
+                                    <LoaderCircle className="animate-spin" />
+                                  ) : (
+                                    <Upload />
+                                  )}
+                                  {enviando ? "Enviando..." : "Reenviar"}
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  onClick={() => {
+                                    setEtapaSelecionada(null);
+                                    setArquivo(null);
+                                  }}
+                                  className="cursor-pointer"
+                                >
+                                  Cancelar
+                                </Button>
+                              </div>
+                            </form>
+                          ) : (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setEtapaSelecionada(etapa.id)}
+                              className="cursor-pointer"
+                            >
+                              <Upload />
+                              Enviar nova comprovação
+                            </Button>
+                          ))}
                       </div>
                     ) : !podeCriar ? null : etapaSelecionada === etapa.id ? (
                       <form onSubmit={handleUpload} className="flex flex-col gap-3">

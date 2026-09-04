@@ -200,6 +200,8 @@ export type Comprovacao = {
   id: number;
   indicador_id: number;
   etapa_id: number | null;
+  usuario_id: number | null;
+  versao: number;
   ano: number;
   mes: number;
   arquivo_nome: string;
@@ -548,14 +550,21 @@ export async function fetchNotificacoesQuantidade(): Promise<number> {
 }
 
 export function assinarNotificacoes(
-  onAtualizar: () => void,
+  onAtualizar: (titulo?: string, mensagem?: string) => void,
 ): () => void {
   const token = obterTokenAuth();
   if (!token) return () => {};
 
   const url = `${API_URL}/api/notificacoes/stream?token=${encodeURIComponent(token)}`;
   const source = new EventSource(url);
-  source.addEventListener("atualizar", onAtualizar);
+  source.addEventListener("atualizar", (event: MessageEvent) => {
+    try {
+      const data = JSON.parse(event.data);
+      onAtualizar(data.titulo, data.mensagem);
+    } catch {
+      onAtualizar();
+    }
+  });
   return () => source.close();
 }
 

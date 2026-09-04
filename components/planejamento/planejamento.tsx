@@ -463,20 +463,20 @@ export function Planejamento() {
               {usuario?.papel === "default" ? (
                 <>
                   <Button
-                    onClick={abrirNovaSugestao}
-                    variant="outline"
-                    className="cursor-pointer"
-                  >
-                    <Plus />
-                    Nova Sugestão
-                  </Button>
-                  <Button
                     onClick={() => setVisao("minhas")}
                     variant="outline"
                     className="cursor-pointer"
                   >
                     <Lightbulb />
                     Minhas sugestões
+                  </Button>
+                  <Button
+                    onClick={abrirNovaSugestao}
+                    variant="outline"
+                    className="cursor-pointer bg-bege hover:bg-bege/90 text-white hover:text-white"
+                  >
+                    <Plus />
+                    Nova Sugestão
                   </Button>
                 </>
               ) : usuario?.papel ? (
@@ -542,105 +542,107 @@ export function Planejamento() {
           <>
             <div className="overflow-x-auto rounded-xl border bg-card">
               <table className="w-full table-fixed text-sm">
-              <thead>
-                <tr className="border-b bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
-                  <th className="w-[5%] px-5 py-3 font-medium">Código</th>
-                  <th className="w-[20%] px-5 py-3 font-medium">Objetivo</th>
-                  <th className="w-[50%] px-5 py-3 font-medium">Iniciativa</th>
-                  <th className="w-[15%] px-5 py-3 font-medium">Progresso</th>
-                  {podeEditar && (
-                    <th className="w-[10%] px-5 py-3 text-right font-medium">
-                      Ações
+                <thead>
+                  <tr className="border-b bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
+                    <th className="w-[5%] px-5 py-3 font-medium">Código</th>
+                    <th className="w-[20%] px-5 py-3 font-medium">Objetivo</th>
+                    <th className="w-[50%] px-5 py-3 font-medium">
+                      Iniciativa
                     </th>
+                    <th className="w-[15%] px-5 py-3 font-medium">Progresso</th>
+                    {podeEditar && (
+                      <th className="w-[10%] px-5 py-3 text-right font-medium">
+                        Ações
+                      </th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginasVisiveis.map((item) => (
+                    <tr
+                      key={item.id}
+                      onClick={() => router.push(`/planejamento/${item.id}`)}
+                      className="cursor-pointer border-b last:border-0 transition-colors hover:bg-muted/50"
+                    >
+                      <td className="px-5 py-4 align-top">
+                        <span className="border border-solid border-black/[.08] inline-flex w-fit rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                          {item.objetivo.codigo}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4 align-top text-muted-foreground">
+                        {item.objetivo.nome}
+                      </td>
+                      <td className="px-5 py-4 align-top font-medium">
+                        {item.nome}
+                      </td>
+                      <td className="px-5 py-4 align-top">
+                        <div className="flex items-center gap-3">
+                          <div className="h-2 w-32 overflow-hidden rounded-full bg-muted">
+                            <div
+                              className="h-full rounded-full bg-bege"
+                              style={{ width: `${item.progresso}%` }}
+                            />
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            {Math.round(item.progresso)}%
+                          </span>
+                        </div>
+                      </td>
+                      {(podeEditar || podeExcluir) && (
+                        <td className="px-5 py-4 align-top">
+                          <div className="flex items-center justify-end gap-2">
+                            {(podeEditar || podeExcluir) && (
+                              <Button
+                                type="button"
+                                size="icon"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  abrirEdicao(item);
+                                }}
+                                className="border border-solid border-black/[.08] rounded-mds bg-white hover:bg-white/90 text-azul-escuro cursor-pointer"
+                              >
+                                <Pencil />
+                              </Button>
+                            )}
+                            {podeExcluir && (
+                              <Button
+                                type="button"
+                                size="icon"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  setExcluindo(item);
+                                }}
+                                className="bg-red-600/90 text-white hover:bg-red-600/80 cursor-pointer"
+                              >
+                                <Trash />
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                  {itens.length === 0 && (
+                    <tr>
+                      <td
+                        colSpan={podeEditar || podeExcluir ? 5 : 4}
+                        className="px-5 py-10 text-center text-sm text-muted-foreground"
+                      >
+                        Nenhum planejamento cadastrado.
+                      </td>
+                    </tr>
                   )}
-                </tr>
-              </thead>
-            <tbody>
-              {paginasVisiveis.map((item) => (
-                <tr
-                  key={item.id}
-                  onClick={() => router.push(`/planejamento/${item.id}`)}
-                  className="cursor-pointer border-b last:border-0 transition-colors hover:bg-muted/50"
-                >
-                  <td className="px-5 py-4 align-top">
-                    <span className="border border-solid border-black/[.08] inline-flex w-fit rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-                      {item.objetivo.codigo}
-                    </span>
-                  </td>
-                  <td className="px-5 py-4 align-top text-muted-foreground">
-                    {item.objetivo.nome}
-                  </td>
-                  <td className="px-5 py-4 align-top font-medium">
-                    {item.nome}
-                  </td>
-                  <td className="px-5 py-4 align-top">
-                    <div className="flex items-center gap-3">
-                      <div className="h-2 w-32 overflow-hidden rounded-full bg-muted">
-                        <div
-                          className="h-full rounded-full bg-bege"
-                          style={{ width: `${item.progresso}%` }}
-                        />
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        {Math.round(item.progresso)}%
-                      </span>
-                    </div>
-                  </td>
-                  {(podeEditar || podeExcluir) && (
-                    <td className="px-5 py-4 align-top">
-                      <div className="flex items-center justify-end gap-2">
-                        {(podeEditar || podeExcluir) && (
-                          <Button
-                            type="button"
-                            size="icon"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              abrirEdicao(item);
-                            }}
-                            className="border border-solid border-black/[.08] rounded-mds bg-white hover:bg-white/90 text-azul-escuro cursor-pointer"
-                          >
-                            <Pencil />
-                          </Button>
-                        )}
-                        {podeExcluir && (
-                          <Button
-                            type="button"
-                            size="icon"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setExcluindo(item);
-                            }}
-                            className="bg-red-600/90 text-white hover:bg-red-600/80 cursor-pointer"
-                          >
-                            <Trash />
-                          </Button>
-                        )}
-                      </div>
-                    </td>
-                  )}
-                </tr>
-              ))}
-              {itens.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={podeEditar || podeExcluir ? 5 : 4}
-                    className="px-5 py-10 text-center text-sm text-muted-foreground"
-                  >
-                    Nenhum planejamento cadastrado.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        <Pagination
-          paginaAtual={paginaSegura}
-          totalPaginas={totalPaginas}
-          totalItens={itens.length}
-          itensPorPagina={ITENS_POR_PAGINA}
-          rotuloItensPlural="planejamentos"
-          onMudarPagina={setPaginaAtual}
-        />
+                </tbody>
+              </table>
+            </div>
+            <Pagination
+              paginaAtual={paginaSegura}
+              totalPaginas={totalPaginas}
+              totalItens={itens.length}
+              itensPorPagina={ITENS_POR_PAGINA}
+              rotuloItensPlural="planejamentos"
+              onMudarPagina={setPaginaAtual}
+            />
           </>
         )}
       </main>

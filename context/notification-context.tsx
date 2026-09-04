@@ -16,6 +16,7 @@ import {
   marcarNotificacaoLida,
   marcarTodasNotificacoesLidas,
 } from "@/lib/api";
+import { toast } from "sonner";
 
 type NotificationContextValue = {
   naoLidas: number;
@@ -51,10 +52,16 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         .then(setNaoLidas)
         .catch(() => {});
     }, 30000);
-    const fecharStream = assinarNotificacoes(() => {
+    const fecharStream = assinarNotificacoes((titulo, mensagem) => {
       fetchNotificacoesQuantidade()
         .then(setNaoLidas)
         .catch(() => {});
+      if (titulo) {
+        toast.info("Você tem uma nova notificação:", {
+          description: `${titulo}. ${mensagem ?? ""}`.trim(),
+          duration: 5000,
+        });
+      }
     });
     return () => {
       clearInterval(intervalo);

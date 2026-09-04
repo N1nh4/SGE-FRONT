@@ -120,6 +120,7 @@ export function DetalheIniciativa({
         setPlanejamento(pj);
 
         const todos: ComprovacaoDetalhe[] = [];
+        const porEtapa = new Map<string, ComprovacaoDetalhe>();
 
         for (const indicador of pj.indicadores) {
           if (!indicador.unidades.some((u) => u.id === unidadeId)) continue;
@@ -127,7 +128,7 @@ export function DetalheIniciativa({
           const comprovacoes = await fetchComprovacoes(indicador.id);
           for (const c of comprovacoes) {
             if (c.ano !== ano || c.mes !== mes) continue;
-            todos.push({
+            const item: ComprovacaoDetalhe = {
               id: c.id,
               arquivo_nome: c.arquivo_nome,
               created_at: c.created_at,
@@ -138,9 +139,13 @@ export function DetalheIniciativa({
               rotulo_x: indicador.rotulo_x,
               rotulo_y: indicador.rotulo_y,
               orientacao: indicador.orientacao,
-            });
+            };
+            const chave = `${indicador.id}|${c.etapa_id ?? `mes-${c.ano}-${c.mes}`}`;
+            if (!porEtapa.has(chave)) porEtapa.set(chave, item);
           }
         }
+
+        todos.push(...porEtapa.values());
 
         if (!ativo) return;
         setItens(todos);
