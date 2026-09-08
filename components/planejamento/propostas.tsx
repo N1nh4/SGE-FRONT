@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   Check,
   ChevronDown,
@@ -23,6 +23,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Pagination } from "@/components/ui/pagination";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -789,6 +790,22 @@ export function PropostasTabela({
   const [confirmandoEnvio, setConfirmandoEnvio] = useState<Proposta | null>(
     null,
   );
+  const [paginaAtual, setPaginaAtual] = useState(1);
+  const ITENS_POR_PAGINA = 7;
+  const totalPaginas = Math.max(
+    1,
+    Math.ceil(propostas.length / ITENS_POR_PAGINA),
+  );
+  const paginaSegura = Math.min(paginaAtual, totalPaginas);
+  const propostasVisiveis = useMemo(() => {
+    const inicio = (paginaSegura - 1) * ITENS_POR_PAGINA;
+    return propostas.slice(inicio, inicio + ITENS_POR_PAGINA);
+  }, [propostas, paginaSegura]);
+
+  useEffect(() => {
+    setPaginaAtual(1);
+  }, [propostas.length, modo]);
+
   const podeWorkflow = (proposta: Proposta) => {
     const ehDono = proposta.criado_por === usuarioId;
     return {
@@ -824,7 +841,7 @@ export function PropostasTabela({
           </tr>
         </thead>
         <tbody>
-          {propostas.map((proposta) => {
+          {propostasVisiveis.map((proposta) => {
             const { podeEditar, podeEnviar, podeConverter } =
               podeWorkflow(proposta);
             return (
@@ -894,6 +911,15 @@ export function PropostasTabela({
         </tbody>
       </table>
       </div>
+
+      <Pagination
+        paginaAtual={paginaSegura}
+        totalPaginas={totalPaginas}
+        totalItens={propostas.length}
+        itensPorPagina={ITENS_POR_PAGINA}
+        rotuloItensPlural="sugestões"
+        onMudarPagina={setPaginaAtual}
+      />
 
       <AlertDialog
         open={confirmandoEnvio !== null}

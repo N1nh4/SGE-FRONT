@@ -24,11 +24,13 @@ function getFirstAllowedPage(paginas: PaginaComAcoes[] | undefined): string {
 export function ProtectedLayout({
   titulo,
   subtitulo,
+  headerInicio,
   headerAcoes,
   children,
 }: {
   titulo?: string;
   subtitulo?: string;
+  headerInicio?: ReactNode;
   headerAcoes?: ReactNode;
   children: React.ReactNode;
 }) {
@@ -78,7 +80,12 @@ export function ProtectedLayout({
       <Sidebar />
       <div className="flex flex-1 flex-col">
         {titulo && (
-          <PageHeader titulo={titulo} subtitulo={subtitulo} acoes={headerAcoes} />
+          <PageHeader
+            titulo={titulo}
+            subtitulo={subtitulo}
+            inicio={headerInicio}
+            acoes={headerAcoes}
+          />
         )}
         {children}
       </div>

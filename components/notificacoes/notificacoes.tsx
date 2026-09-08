@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { useNotificacoes } from "@/context/notification-context";
 import { usePermissoes } from "@/lib/use-permissoes";
 import {
+  fetchComprovacaoContexto,
   fetchNotificacoes,
   fetchPlanejamentoById,
   type Notificacao,
@@ -120,7 +121,7 @@ export function Notificacao() {
       .catch(() => {});
   }
 
-  function rotaPara(notificacao: Notificacao): string {
+  async function rotaPara(notificacao: Notificacao): Promise<string> {
     switch (notificacao.tipo) {
       case "proposta":
         return "/planejamento?tela=recebidas";
@@ -129,6 +130,17 @@ export function Notificacao() {
           ? `/planejamento/${notificacao.entidade_id}`
           : "/planejamento";
       case "comprovacao":
+        if (notificacao.entidade_id) {
+          try {
+            const contexto = await fetchComprovacaoContexto(
+              notificacao.entidade_id,
+            );
+            return `/validacao/${contexto.unidade_id}/${contexto.planejamento_id}?mes=${contexto.mes}&ano=${contexto.ano}`;
+          } catch {
+            return "/validacao";
+          }
+        }
+        return "/validacao";
       case "comprovacao_aprovada":
       case "comprovacao_rejeitada":
         return "/comprovacoes";
@@ -142,15 +154,18 @@ export function Notificacao() {
   }
 
   function abrirNotificacao(notificacao: Notificacao) {
+    const navegar = async () => {
+      router.push(await rotaPara(notificacao));
+    };
     if (notificacao.lida) {
-      router.push(rotaPara(notificacao));
+      navegar();
       return;
     }
     marcarLida(notificacao.id).then(() => {
       setNotificacoes((prev) =>
         prev.map((n) => (n.id === notificacao.id ? { ...n, lida: true } : n)),
       );
-      router.push(rotaPara(notificacao));
+      navegar();
     });
   }
 

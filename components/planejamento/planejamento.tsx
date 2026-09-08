@@ -81,6 +81,12 @@ function indicadorVazio(): IndicadorForm {
   };
 }
 
+function formatarData(iso: string): string {
+  const data = new Date(iso);
+  if (Number.isNaN(data.getTime())) return "—";
+  return data.toLocaleDateString("pt-BR");
+}
+
 export function Planejamento() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -545,11 +551,13 @@ export function Planejamento() {
                 <thead>
                   <tr className="border-b bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
                     <th className="w-[5%] px-5 py-3 font-medium">Código</th>
-                    <th className="w-[20%] px-5 py-3 font-medium">Objetivo</th>
-                    <th className="w-[50%] px-5 py-3 font-medium">
+                    <th className="w-[18%] px-5 py-3 font-medium">Objetivo</th>
+                    <th className="w-[30%] px-5 py-3 font-medium">
                       Iniciativa
                     </th>
-                    <th className="w-[15%] px-5 py-3 font-medium">Progresso</th>
+                    <th className="w-[15%] px-5 py-3 font-medium">Responsável</th>
+                    <th className="w-[10%] px-5 py-3 font-medium">Criado em</th>
+                    <th className="w-[12%] px-5 py-3 font-medium">Progresso</th>
                     {podeEditar && (
                       <th className="w-[10%] px-5 py-3 text-right font-medium">
                         Ações
@@ -574,6 +582,18 @@ export function Planejamento() {
                       </td>
                       <td className="px-5 py-4 align-top font-medium">
                         {item.nome}
+                      </td>
+                      <td className="px-5 py-4 align-top text-muted-foreground">
+                        {Array.from(
+                          new Set(
+                            item.indicadores.flatMap((ind) =>
+                              ind.unidades.map((unidade) => unidade.nome),
+                            ),
+                          ),
+                        ).join(", ") || "Sem unidade"}
+                      </td>
+                      <td className="px-5 py-4 align-top text-muted-foreground">
+                        {formatarData(item.created_at)}
                       </td>
                       <td className="px-5 py-4 align-top">
                         <div className="flex items-center gap-3">
@@ -625,7 +645,7 @@ export function Planejamento() {
                   {itens.length === 0 && (
                     <tr>
                       <td
-                        colSpan={podeEditar || podeExcluir ? 5 : 4}
+                        colSpan={podeEditar || podeExcluir ? 7 : 6}
                         className="px-5 py-10 text-center text-sm text-muted-foreground"
                       >
                         Nenhum planejamento cadastrado.

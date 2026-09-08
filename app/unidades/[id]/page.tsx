@@ -13,7 +13,7 @@ export default async function Page({
   return (
     <ProtectedLayout
       titulo="Unidades"
-      headerAcoes={
+      headerInicio={
         <Link
           href="/unidades"
           className="inline-flex size-9 items-center justify-center rounded-md border border-input bg-background p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"

@@ -170,6 +170,14 @@ export function PaginaComprovacoes({
             <div className="text-sm text-muted-foreground">
               ({indicador.rotulo_x} / {indicador.rotulo_y}) x 100
             </div>
+            {indicador.orientacao && (
+              <div className="text-sm">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Orientação para comprovação
+                </p>
+                <p className="mt-1">{indicador.orientacao}</p>
+              </div>
+            )}
             <div className="flex items-center gap-2 text-sm">
               <span className="text-muted-foreground">Progresso:</span>
               <div className="h-2 w-32 overflow-hidden rounded-full bg-muted">

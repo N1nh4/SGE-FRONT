@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Eye, LoaderCircle, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Pagination } from "@/components/ui/pagination";
 import {
   fetchComprovacoes,
   fetchPlanejamento,
@@ -87,6 +88,12 @@ function calcularStatus(comprovacoes: Comprovacao[]): StatusValidacao {
   return "sem_comprovante";
 }
 
+function formatarData(iso: string): string {
+  const data = new Date(iso);
+  if (Number.isNaN(data.getTime())) return "—";
+  return data.toLocaleDateString("pt-BR");
+}
+
 export function ValidacaoUnidade({
   unidadeId,
   mes,
@@ -102,6 +109,7 @@ export function ValidacaoUnidade({
   const [erro, setErro] = useState(false);
   const [filtroStatus, setFiltroStatus] = useState<string>("todos");
   const [busca, setBusca] = useState("");
+  const [paginaAtual, setPaginaAtual] = useState(1);
 
   useEffect(() => {
     fetchUnidades()
@@ -144,9 +152,15 @@ export function ValidacaoUnidade({
 
         await Promise.all(promessas);
 
-        linhasNovas.sort((a, b) =>
-          a.objetivoCodigo.localeCompare(b.objetivoCodigo),
-        );
+        function dataMaisRecente(linha: IndicadorLinha): number {
+          return linha.comprovacoes.reduce(
+            (maior, c) =>
+              Math.max(maior, new Date(c.updated_at).getTime() || 0),
+            0,
+          );
+        }
+
+        linhasNovas.sort((a, b) => dataMaisRecente(b) - dataMaisRecente(a));
 
         if (ativo) setLinhas(linhasNovas);
       } catch {
@@ -175,6 +189,21 @@ export function ValidacaoUnidade({
       return linha.status === filtroStatus;
     });
   }, [linhas, filtroStatus, busca]);
+
+  const ITENS_POR_PAGINA = 7;
+  const totalPaginas = Math.max(
+    1,
+    Math.ceil(linhasFiltradas.length / ITENS_POR_PAGINA),
+  );
+  const paginaSegura = Math.min(paginaAtual, totalPaginas);
+  const linhasVisiveis = useMemo(() => {
+    const inicio = (paginaSegura - 1) * ITENS_POR_PAGINA;
+    return linhasFiltradas.slice(inicio, inicio + ITENS_POR_PAGINA);
+  }, [linhasFiltradas, paginaSegura]);
+
+  useEffect(() => {
+    setPaginaAtual(1);
+  }, [filtroStatus, busca]);
 
   const totalIndicadores = linhas.length;
   const aprovados = linhas.filter((l) => l.status === "aprovado").length;
@@ -265,14 +294,15 @@ export function ValidacaoUnidade({
                 <thead>
                   <tr className="border-b bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
                     <th className="w-[12%] px-5 py-3 font-medium">Código</th>
-                    <th className="w-[28%] px-5 py-3 font-medium">Iniciativa</th>
-                    <th className="w-[32%] px-5 py-3 font-medium">Meta</th>
-                    <th className="w-[15%] px-5 py-3 font-medium">Status</th>
+                    <th className="w-[24%] px-5 py-3 font-medium">Iniciativa</th>
+                    <th className="w-[26%] px-5 py-3 font-medium">Meta</th>
+                    <th className="w-[13%] px-5 py-3 font-medium">Status</th>
+                    <th className="w-[12%] px-5 py-3 font-medium">Data</th>
                     <th className="w-[13%] px-5 py-3 text-right font-medium">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {linhasFiltradas.map((linha) => (
+                  {linhasVisiveis.map((linha) => (
                     <tr
                       key={linha.indicador.id}
                       className="border-b last:border-0 transition-colors hover:bg-muted/50"
@@ -298,14 +328,23 @@ export function ValidacaoUnidade({
                           {statusLabel(linha.status)}
                         </span>
                       </td>
+                      <td className="px-5 py-4 align-top text-muted-foreground">
+                        {linha.comprovacoes.length === 0
+                          ? "—"
+                          : formatarData(
+                              linha.comprovacoes.reduce((maior, c) =>
+                                c.updated_at > maior.updated_at ? c : maior,
+                              ).updated_at,
+                            )}
+                      </td>
                       <td className="px-5 py-4 align-top">
                         <div className="flex items-center justify-end gap-2">
                           <Button
                             type="button"
                             size="sm"
-                            onClick={() =>
-                              (window.location.href = `/validacao/${unidadeId}/${linha.iniciativaId}?mes=${mes}&ano=${ano}`)
-                            }
+onClick={() =>
+  (window.location.href = `/validacao/${unidadeId}/${linha.iniciativaId}?mes=${mes}&ano=${ano}&status=${filtroStatus}&busca=${encodeURIComponent(busca)}`)
+}
                             className="cursor-pointer border border-solid border-black/[.08] bg-white text-azul-escuro hover:bg-white/90"
                           >
                             <Eye />
@@ -318,7 +357,7 @@ export function ValidacaoUnidade({
                   {linhasFiltradas.length === 0 && (
                     <tr>
                       <td
-                        colSpan={5}
+                        colSpan={6}
                         className="px-5 py-10 text-center text-sm text-muted-foreground"
                       >
                         {linhas.length === 0
@@ -330,6 +369,14 @@ export function ValidacaoUnidade({
                 </tbody>
               </table>
             </div>
+            <Pagination
+              paginaAtual={paginaSegura}
+              totalPaginas={totalPaginas}
+              totalItens={linhasFiltradas.length}
+              itensPorPagina={ITENS_POR_PAGINA}
+              rotuloItensPlural="indicadores"
+              onMudarPagina={setPaginaAtual}
+            />
           </>
         )}
       </main>

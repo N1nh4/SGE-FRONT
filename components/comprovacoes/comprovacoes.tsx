@@ -2,10 +2,17 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Eye } from "lucide-react";
+import { Search, Eye, MessageSquareWarning } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useAuth } from "@/context/auth-context";
 import {
   fetchPlanejamento,
@@ -57,6 +64,12 @@ function statusLabel(status: StatusConsolidado): string {
     case "pendente":
       return "Pendente";
   }
+}
+
+function formatarData(iso: string): string {
+  const data = new Date(iso);
+  if (Number.isNaN(data.getTime())) return "—";
+  return data.toLocaleDateString("pt-BR");
 }
 
 function statusCores(status: StatusConsolidado): string {
@@ -127,6 +140,8 @@ export function Comprovacoes() {
   const [filtroStatus, setFiltroStatus] = useState<string>("todos");
   const [busca, setBusca] = useState("");
   const [paginaAtual, setPaginaAtual] = useState(1);
+  const [recusadasAbertas, setRecusadasAbertas] =
+    useState<IndicadorLinha | null>(null);
 
   useEffect(() => {
     async function carregar() {
@@ -167,9 +182,16 @@ export function Comprovacoes() {
           );
         }
 
+        function dataMaisRecente(linha: IndicadorLinha): number {
+          return linha.comprovacoes.reduce(
+            (maior, c) =>
+              Math.max(maior, new Date(c.updated_at).getTime() || 0),
+            0,
+          );
+        }
+
         resultado.sort(
-          (a, b) =>
-            a.objetivo?.codigo?.localeCompare(b.objetivo?.codigo ?? "") ?? 0,
+          (a, b) => dataMaisRecente(b) - dataMaisRecente(a),
         );
 
         setLinhas(resultado);
@@ -248,7 +270,7 @@ export function Comprovacoes() {
             <p className="text-xs font-medium uppercase text-muted-foreground">
               Em Análise
             </p>
-            <p className="mt-1 text-2xl font-semibold text-yellow-600">
+            <p className="mt-1 text-2xl font-semibold text-blue-600">
               {emAnalise}
             </p>
           </div>
@@ -281,7 +303,7 @@ export function Comprovacoes() {
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Buscar meta, orientação..."
+              placeholder="Buscar meta..."
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
               className="pl-8 w-64 bg-white"
@@ -294,11 +316,11 @@ export function Comprovacoes() {
             <thead>
               <tr className="border-b bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <th className="w-[10%] px-5 py-3 font-medium">Código</th>
-                <th className="w-[22%] px-5 py-3 font-medium">Meta</th>
-                <th className="w-[30%] px-5 py-3 font-medium">Orientação</th>
-                <th className="w-[14%] px-5 py-3 font-medium">Responsável</th>
-                <th className="w-[15%] px-5 py-3 font-medium">Status</th>
-                <th className="w-[9%] px-5 py-3 text-right font-medium">Ações</th>
+                <th className="w-[25%] px-5 py-3 font-medium">Meta</th>
+                <th className="w-[17%] px-5 py-3 font-medium">Responsável</th>
+                <th className="w-[12%] px-5 py-3 font-medium">Data</th>
+                <th className="w-[18%] px-5 py-3 font-medium">Status</th>
+                <th className="w-[18%] px-5 py-3 text-right font-medium">Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -319,10 +341,16 @@ export function Comprovacoes() {
                     {linha.indicador.meta}
                   </td>
                   <td className="px-5 py-4 align-top text-muted-foreground">
-                    {linha.indicador.orientacao || "—"}
+                    {linha.responsavel}
                   </td>
                   <td className="px-5 py-4 align-top text-muted-foreground">
-                    {linha.responsavel}
+                    {linha.comprovacoes.length === 0
+                      ? "—"
+                      : formatarData(
+                          linha.comprovacoes.reduce((maior, c) =>
+                            c.updated_at > maior.updated_at ? c : maior,
+                          ).updated_at,
+                        )}
                   </td>
                   <td className="px-5 py-4 align-top">
                     <div className="flex items-center gap-2">
@@ -338,6 +366,17 @@ export function Comprovacoes() {
                   </td>
                   <td className="px-5 py-4 align-top">
                     <div className="flex items-center justify-end gap-2">
+                      {linha.statusConsolidado === "recusado" && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          title="Ver justificativa e prazo"
+                          onClick={() => setRecusadasAbertas(linha)}
+                          className="cursor-pointer border border-solid border-black/[.08] bg-white text-red-600 hover:bg-white/90"
+                        >
+                          <MessageSquareWarning />
+                        </Button>
+                      )}
                       <Button
                         type="button"
                         size="sm"
@@ -388,6 +427,63 @@ export function Comprovacoes() {
           onMudarPagina={setPaginaAtual}
         />
       </main>
+
+      <Dialog
+        open={recusadasAbertas !== null}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) setRecusadasAbertas(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Justificativa da reprovação</DialogTitle>
+            <DialogDescription>
+              {recusadasAbertas?.indicador.meta}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            {recusadasAbertas?.comprovacoes
+              .filter((c) => c.status === "recusado")
+              .map((c) => {
+                const etapa = recusadasAbertas.indicador.etapas.find(
+                  (e) => e.id === c.etapa_id,
+                );
+                return (
+                  <div
+                    key={c.id}
+                    className="rounded-lg border bg-muted/30 p-4"
+                  >
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      {etapa?.nome ?? "Comprovação"}
+                    </p>
+                    <div className="mt-2 grid gap-2 text-sm">
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground">
+                          Justificativa
+                        </p>
+                        <p className="text-sm">
+                          {c.justificativa || "Não informada."}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground">
+                          Prazo para reenvio
+                        </p>
+                        <p className="text-sm">
+                          {c.prazo_reenvio
+                            ? new Date(
+                                c.prazo_reenvio + "T00:00:00",
+                              ).toLocaleDateString("pt-BR")
+                            : "Sem prazo definido."}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

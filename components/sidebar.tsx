@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   BarChart3,
   Bell,
@@ -28,6 +29,7 @@ const navItems = [
 export function Sidebar() {
   const { usuario, unidades, unidadeId, logout } = useAuth();
   const { naoLidas } = useNotificacoes();
+  const pathname = usePathname();
 
   const itensVisiveis = navItems.filter(
     (item) =>
@@ -37,6 +39,10 @@ export function Sidebar() {
   );
 
   const unidadeAtual = unidades.find((u) => u.id === unidadeId);
+
+  function estaAtivo(href: string): boolean {
+    return pathname === href || pathname.startsWith(href + "/");
+  }
 
   return (
     <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col bg-azul-escuro text-white">
@@ -59,7 +65,11 @@ export function Sidebar() {
           <Link
             key={href}
             href={href}
-            className="flex items-center gap-3 rounded-lg bg-white/10 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-white/15"
+            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              estaAtivo(href)
+                ? "bg-bege text-white hover:bg-bege/90"
+                : "bg-white/10 text-white hover:bg-white/15"
+            }`}
           >
             <Icon className="size-4" />
             <span className="flex-1">{label}</span>
@@ -73,7 +83,11 @@ export function Sidebar() {
         {usuario?.paginas?.some((p) => p.chave === "/configurador") && (
           <Link
             href="/configurador"
-            className="flex items-center gap-3 rounded-lg bg-white/10 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-white/15"
+            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              estaAtivo("/configurador")
+                ? "bg-bege text-white hover:bg-bege/90"
+                : "bg-white/10 text-white hover:bg-white/15"
+            }`}
           >
             <Settings className="size-4" />
             Configurações

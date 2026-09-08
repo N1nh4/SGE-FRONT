@@ -267,6 +267,24 @@ export function urlArquivoComprovacao(id: number): string {
   return `${API_URL}/api/comprovacoes/${id}/arquivo`;
 }
 
+export type ComprovacaoContexto = {
+  unidade_id: number;
+  planejamento_id: number;
+  indicador_id: number;
+  mes: number;
+  ano: number;
+};
+
+export async function fetchComprovacaoContexto(
+  comprovacaoId: number,
+): Promise<ComprovacaoContexto> {
+  const contexto = await apiFetch<ComprovacaoContexto>(
+    `/api/comprovacoes/${comprovacaoId}/contexto`,
+  );
+  if (!contexto) throw new Error("Contexto não encontrado");
+  return contexto;
+}
+
 export async function abrirArquivoComprovacao(id: number): Promise<void> {
   const res = await fetch(urlArquivoComprovacao(id), {
     headers: authHeaders(),

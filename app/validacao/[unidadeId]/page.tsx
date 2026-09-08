@@ -18,7 +18,7 @@ export default async function Page({
   return (
     <ProtectedLayout
       titulo="Validação de Comprovações"
-      headerAcoes={
+      headerInicio={
         <Link
           href="/validacao"
           className="inline-flex size-9 items-center justify-center rounded-md border border-input bg-background p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"

@@ -29,9 +29,8 @@ import {
   decidirComprovacao,
   fetchArquivoComprovacaoUrl,
   fetchComprovacoes,
-  fetchPlanejamentoById,
+  fetchPlanejamento,
   fetchUnidades,
-  type Planejamento,
   type StatusComprovacao,
   type Unidade,
 } from "@/lib/api";
@@ -55,9 +54,12 @@ type ComprovacaoDetalhe = {
   id: number;
   arquivo_nome: string;
   created_at: string;
+  updated_at: string;
   status: StatusComprovacao;
+  planejamentoId: number;
   indicadorId: number;
   indicadorNome: string;
+  iniciativa: string;
   meta: string;
   rotulo_x: string;
   rotulo_y: string;
@@ -81,16 +83,19 @@ export function DetalheIniciativa({
   planejamentoId,
   mes,
   ano,
+  filtroStatus,
+  busca,
 }: {
   unidadeId: number;
   planejamentoId: number;
   mes: number;
   ano: number;
+  filtroStatus?: string;
+  busca?: string;
 }) {
   const { pode } = usePermissoes();
   const podeAprovar = pode("/validacao", "aprovar");
   const [unidade, setUnidade] = useState<Unidade | null>(null);
-  const [planejamento, setPlanejamento] = useState<Planejamento | null>(null);
   const [itens, setItens] = useState<ComprovacaoDetalhe[]>([]);
   const [indiceAtual, setIndiceAtual] = useState(0);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
@@ -114,41 +119,64 @@ export function DetalheIniciativa({
   useEffect(() => {
     let ativo = true;
 
-    fetchPlanejamentoById(planejamentoId)
-      .then(async (pj) => {
+    fetchPlanejamento()
+      .then(async (lista) => {
         if (!ativo) return;
-        setPlanejamento(pj);
 
         const todos: ComprovacaoDetalhe[] = [];
-        const porEtapa = new Map<string, ComprovacaoDetalhe>();
 
-        for (const indicador of pj.indicadores) {
-          if (!indicador.unidades.some((u) => u.id === unidadeId)) continue;
+        for (const pj of lista) {
+          for (const indicador of pj.indicadores) {
+            if (!indicador.unidades.some((u) => u.id === unidadeId)) continue;
 
-          const comprovacoes = await fetchComprovacoes(indicador.id);
-          for (const c of comprovacoes) {
-            if (c.ano !== ano || c.mes !== mes) continue;
-            const item: ComprovacaoDetalhe = {
-              id: c.id,
-              arquivo_nome: c.arquivo_nome,
-              created_at: c.created_at,
-              status: c.status,
-              indicadorId: indicador.id,
-              indicadorNome: indicador.nome,
-              meta: indicador.meta,
-              rotulo_x: indicador.rotulo_x,
-              rotulo_y: indicador.rotulo_y,
-              orientacao: indicador.orientacao,
-            };
-            const chave = `${indicador.id}|${c.etapa_id ?? `mes-${c.ano}-${c.mes}`}`;
-            if (!porEtapa.has(chave)) porEtapa.set(chave, item);
+            const comprovacoes = await fetchComprovacoes(indicador.id);
+            const porEtapa = new Map<string, ComprovacaoDetalhe>();
+            for (const c of comprovacoes) {
+              if (c.ano !== ano || c.mes !== mes) continue;
+              const item: ComprovacaoDetalhe = {
+                id: c.id,
+                arquivo_nome: c.arquivo_nome,
+                created_at: c.created_at,
+                updated_at: c.updated_at,
+                status: c.status,
+                planejamentoId: pj.id,
+                indicadorId: indicador.id,
+                indicadorNome: indicador.nome,
+                iniciativa: pj.nome,
+                meta: indicador.meta,
+                rotulo_x: indicador.rotulo_x,
+                rotulo_y: indicador.rotulo_y,
+                orientacao: indicador.orientacao,
+              };
+              const chave = `${indicador.id}|${c.etapa_id ?? `mes-${c.ano}-${c.mes}`}`;
+              if (!porEtapa.has(chave)) porEtapa.set(chave, item);
+            }
+            todos.push(...porEtapa.values());
           }
         }
 
-        todos.push(...porEtapa.values());
+        todos.sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+
+        const textoBusca = (busca ?? "").toLowerCase().trim();
+        const filtrados = todos.filter((item) => {
+          if (filtroStatus && filtroStatus !== "todos") {
+            if (item.status !== filtroStatus) return false;
+          }
+          if (textoBusca) {
+            const alvo = `${item.indicadorNome} ${item.iniciativa}`.toLowerCase();
+            if (!alvo.includes(textoBusca)) return false;
+          }
+          return true;
+        });
+
+        const indiceInicial = Math.max(
+          0,
+          filtrados.findIndex((item) => item.planejamentoId === planejamentoId),
+        );
 
         if (!ativo) return;
-        setItens(todos);
+        setItens(filtrados);
+        setIndiceAtual(indiceInicial);
       })
       .catch(() => {
         if (ativo) setErro(true);
@@ -160,7 +188,7 @@ export function DetalheIniciativa({
     return () => {
       ativo = false;
     };
-  }, [unidadeId, planejamentoId, mes, ano]);
+  }, [unidadeId, planejamentoId, mes, ano, filtroStatus, busca]);
 
   const itemAtual = itens[indiceAtual] ?? null;
 
@@ -254,7 +282,11 @@ export function DetalheIniciativa({
     }
   }
 
-  const voltarHref = `/validacao/${unidadeId}?mes=${mes}&ano=${ano}`;
+  const voltarHref = `/validacao/${unidadeId}?mes=${mes}&ano=${ano}${
+      filtroStatus && filtroStatus !== "todos"
+        ? `&status=${filtroStatus}`
+        : ""
+    }${busca ? `&busca=${encodeURIComponent(busca)}` : ""}`;
 
   return (
     <>
@@ -274,8 +306,7 @@ export function DetalheIniciativa({
 
         {!carregando && !erro && itens.length === 0 && (
           <div className="m-8 rounded-xl border bg-card p-10 text-center text-sm text-muted-foreground">
-            Nenhuma comprovação enviada para esta iniciativa em {MESES[mes - 1]}{" "}
-            de {ano}.
+            Nenhuma comprovação enviada para este período em {MESES[mes - 1]} de {ano}.
           </div>
         )}
 
@@ -371,6 +402,13 @@ export function DetalheIniciativa({
                       {itemAtual.arquivo_nome}
                     </p>
                   </div>
+                </div>
+
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Iniciativa
+                  </p>
+                  <p className="mt-1 text-sm">{itemAtual.iniciativa}</p>
                 </div>
 
                 <div>
