@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   Bell,
   Check,
@@ -14,7 +15,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { useNotificacoes } from "@/context/notification-context";
 import { usePermissoes } from "@/lib/use-permissoes";
-import { fetchNotificacoes, type Notificacao } from "@/lib/api";
+import {
+  fetchNotificacoes,
+  fetchPlanejamentoById,
+  type Notificacao,
+} from "@/lib/api";
 
 type TipoNotificacao =
   | "validacao"
@@ -51,6 +56,9 @@ export function Notificacao() {
   const router = useRouter();
   const { naoLidas, marcarLida, marcarTodasLidas } = useNotificacoes();
   const [notificacoes, setNotificacoes] = useState<Notificacao[]>([]);
+  const [indicadores, setIndicadores] = useState<
+    Record<number, { id: number; nome: string }[]>
+  >({});
   const [carregando, setCarregando] = useState(true);
   const [filtro, setFiltro] = useState<"todas" | "nao-lidas" | "lidas">(
     "todas",
@@ -90,6 +98,26 @@ export function Notificacao() {
         prev.map((n) => (n.id === id ? { ...n, lida: true } : n)),
       );
     });
+  }
+
+  useEffect(() => {
+    const paraCarregar = visiveis.filter(
+      (n) => n.tipo === "planejamento" && n.entidade_id && !indicadores[n.id],
+    );
+    paraCarregar.forEach((n) => carregarIndicadores(n));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visiveis, indicadores]);
+
+  function carregarIndicadores(notificacao: Notificacao) {
+    if (notificacao.tipo !== "planejamento" || !notificacao.entidade_id) return;
+    if (indicadores[notificacao.id]) return;
+    fetchPlanejamentoById(notificacao.entidade_id)
+      .then((p) =>
+        setIndicadores((atual) =>
+          atual[notificacao.id] ? atual : { ...atual, [notificacao.id]: p.indicadores },
+        ),
+      )
+      .catch(() => {});
   }
 
   function rotaPara(notificacao: Notificacao): string {
@@ -183,6 +211,7 @@ export function Notificacao() {
             {visiveis.map((notificacao) => {
               const Icone = ICONES[notificacao.tipo as TipoNotificacao] ?? Bell;
               const naoLida = !notificacao.lida;
+              const indicadoresNotif = indicadores[notificacao.id];
               return (
                 <article
                   key={notificacao.id}
@@ -220,6 +249,25 @@ export function Notificacao() {
                         <p className="mt-2 text-xs text-muted-foreground">
                           {formatarData(notificacao.created_at)}
                         </p>
+                        {notificacao.tipo === "planejamento" &&
+                          notificacao.entidade_id &&
+                          indicadoresNotif && (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {indicadoresNotif.map((indicador) => (
+                                <Link
+                                  key={indicador.id}
+                                  href={`/planejamento/${notificacao.entidade_id}/comprovacoes/${indicador.id}`}
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    if (!notificacao.lida) marcarUma(notificacao.id);
+                                  }}
+                                  className="inline-flex items-center rounded-full bg-azul-escuro/10 px-3 py-1 text-xs font-medium text-azul-escuro transition-colors hover:bg-azul-escuro/20"
+                                >
+                                  {indicador.nome}
+                                </Link>
+                              ))}
+                            </div>
+                          )}
                       </div>
 
                       {naoLida && podeLer && (
