@@ -194,7 +194,11 @@ export async function deletePlanejamento(id: number): Promise<void> {
   await apiFetch(`/api/planejamento/${id}`, { method: "DELETE" });
 }
 
-export type StatusComprovacao = "analise" | "aprovado" | "recusado";
+export type StatusComprovacao =
+  | "analise"
+  | "aprovado"
+  | "recusado"
+  | "sem_atualizacao";
 
 export type Comprovacao = {
   id: number;
@@ -242,6 +246,26 @@ export async function uploadComprovacao(
 
 export async function deleteComprovacao(id: number): Promise<void> {
   await apiFetch(`/api/comprovacoes/${id}`, { method: "DELETE" });
+}
+
+export async function enviarSemAtualizacao(
+  indicadorId: number,
+  etapaId: number | null,
+): Promise<Comprovacao> {
+  const criada = await apiFetch<Comprovacao>(
+    `/api/indicadores/${indicadorId}/comprovacoes/sem-atualizacao`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        etapa_id: etapaId,
+        ano: new Date().getFullYear(),
+        mes: new Date().getMonth() + 1,
+      }),
+    },
+  );
+  if (!criada) throw new Error("Resposta vazia ao registrar sem atualização");
+  return criada;
 }
 
 export type DecisaoComprovacao = {

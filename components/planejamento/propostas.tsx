@@ -86,14 +86,18 @@ export function PropostaFormDialog({
   proposta,
   unidadeId,
   papel,
+  usuarioId,
   onSalvo,
+  onConverter,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   proposta: Proposta | null;
   unidadeId: number | null;
   papel: string | undefined;
+  usuarioId: number | undefined;
   onSalvo: () => void;
+  onConverter: (proposta: Proposta) => void;
 }) {
   const [objetivos, setObjetivos] = useState<Objetivo[]>([]);
   const [unidades, setUnidades] = useState<Unidade[]>([]);
@@ -105,15 +109,34 @@ export function PropostaFormDialog({
   const [dropdownAberto, setDropdownAberto] = useState<number | null>(null);
   const [buscaUnidade, setBuscaUnidade] = useState("");
   const [etapaForm, setEtapaForm] = useState<1 | 2>(1);
+  const [salvarEEnviarAberto, setSalvarEEnviarAberto] = useState(false);
+  const [salvarEConverterAberto, setSalvarEConverterAberto] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const snapshotRef = useRef<{
+    objetivoId: string;
+    nome: string;
+    indicadores: IndicadorForm[];
+  } | null>(null);
 
   const unidadesResponsaveis =
     papel === "default" && unidadeId != null
       ? unidades.filter((u) => u.id === unidadeId)
       : unidades;
 
+  const podeEnviarSugestao =
+    proposta === null || proposta.criado_por === usuarioId;
+
   useEffect(() => {
     if (!open) return;
+    if (snapshotRef.current) {
+      const snap = snapshotRef.current;
+      snapshotRef.current = null;
+      setEtapaForm(1);
+      setObjetivoId(snap.objetivoId);
+      setNome(snap.nome);
+      setIndicadores(snap.indicadores);
+      return;
+    }
     fetchObjetivos()
       .then(setObjetivos)
       .catch(() => {});
@@ -203,6 +226,52 @@ export function PropostaFormDialog({
     }
   }
 
+  function handleSalvarEnviar() {
+    if (!podeEnviarSugestao) return;
+    snapshotRef.current = { objetivoId, nome, indicadores };
+    onOpenChange(false);
+    setSalvarEEnviarAberto(true);
+  }
+
+  async function confirmarEnvio() {
+    if (!salvarEEnviarAberto) return;
+    try {
+      const salva = proposta
+        ? await atualizarProposta(proposta.id, montarDados())
+        : await criarProposta(montarDados());
+      await enviarProposta(salva.id);
+      toast.success("Sugestão enviada aos gestores.");
+      setBuscaUnidade("");
+      setDropdownAberto(null);
+      setSalvarEEnviarAberto(false);
+      snapshotRef.current = null;
+      onOpenChange(false);
+      onSalvo();
+    } catch {
+      toast.error("Erro ao salvar e enviar a proposta.");
+    }
+  }
+
+  function handleSalvarConverter() {
+    if (!proposta || podeEnviarSugestao) return;
+    snapshotRef.current = { objetivoId, nome, indicadores };
+    onOpenChange(false);
+    setSalvarEConverterAberto(true);
+  }
+
+  async function confirmarConversao() {
+    if (!proposta || !salvarEConverterAberto) return;
+    try {
+      await atualizarProposta(proposta.id, montarDados());
+      onConverter(proposta);
+      setSalvarEConverterAberto(false);
+      snapshotRef.current = null;
+      onOpenChange(false);
+    } catch {
+      toast.error("Erro ao salvar e converter a proposta.");
+    }
+  }
+
   function atualizarIndicador(
     index: number,
     campo: keyof IndicadorForm,
@@ -284,11 +353,12 @@ export function PropostaFormDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-4xl p-5">
-        <DialogHeader>
-          <DialogTitle>
-            {proposta ? "Editar sugestão" : "Nova sugestão de planejamento"}
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-4xl p-5">
+          <DialogHeader>
+            <DialogTitle>
+              {proposta ? "Editar sugestão" : "Nova sugestão de planejamento"}
           </DialogTitle>
           <DialogDescription>
             Todos os campos são opcionais. Preencha o que souber — os gestores
@@ -735,6 +805,25 @@ export function PropostaFormDialog({
                 <FileUp />
                 {proposta ? "Salvar alterações" : "Salvar rascunho"}
               </Button>
+              {podeEnviarSugestao ? (
+                <Button
+                  type="button"
+                  onClick={handleSalvarEnviar}
+                  className="cursor-pointer bg-azul-escuro hover:bg-azul-escuro/90"
+                >
+                  <Send />
+                  Salvar e enviar
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  onClick={handleSalvarConverter}
+                  className="cursor-pointer bg-azul-escuro hover:bg-azul-escuro/90"
+                >
+                  <ChevronRight />
+                  Salvar e converter
+                </Button>
+              )}
             </DialogFooter>
           </form>
         )}
@@ -762,7 +851,75 @@ export function PropostaFormDialog({
           </DialogFooter>
         )}
       </DialogContent>
-    </Dialog>
+      </Dialog>
+
+      <AlertDialog
+        open={salvarEEnviarAberto}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) setSalvarEEnviarAberto(false);
+        }}
+      >
+        <AlertDialogContent overlayClassName="bg-black/60 backdrop-blur-md supports-backdrop-filter:backdrop-blur-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Enviar sugestão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja enviar esta sugestão aos gestores? Uma
+              vez enviada, a sugestão não poderá mais ser editada.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setSalvarEEnviarAberto(false);
+                onOpenChange(true);
+              }}
+            >
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmarEnvio}
+              className="bg-bege text-white hover:bg-bege/90"
+            >
+              Enviar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={salvarEConverterAberto}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) setSalvarEConverterAberto(false);
+        }}
+      >
+        <AlertDialogContent overlayClassName="bg-black/60 backdrop-blur-md supports-backdrop-filter:backdrop-blur-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Converter sugestão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja converter esta sugestão em um
+              planejamento oficial? Após a conversão, ela não poderá mais ser
+              editada como sugestão.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setSalvarEConverterAberto(false);
+                onOpenChange(true);
+              }}
+            >
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmarConversao}
+              className="bg-azul-escuro text-white hover:bg-azul-escuro/90"
+            >
+              Converter
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
@@ -787,10 +944,9 @@ export function PropostasTabela({
   onEnviar: (proposta: Proposta) => void;
   onConverter: (proposta: Proposta) => void;
 }) {
-  const [confirmandoEnvio, setConfirmandoEnvio] = useState<Proposta | null>(
-    null,
-  );
   const [paginaAtual, setPaginaAtual] = useState(1);
+  const [propostaParaConverter, setPropostaParaConverter] =
+    useState<Proposta | null>(null);
   const ITENS_POR_PAGINA = 7;
   const totalPaginas = Math.max(
     1,
@@ -886,7 +1042,7 @@ export function PropostasTabela({
                     {podeEnviar && (
                       <Button
                         size="sm"
-                        onClick={() => setConfirmandoEnvio(proposta)}
+                        onClick={() => onEnviar(proposta)}
                         className="cursor-pointer bg-bege hover:bg-bege/90"
                       >
                         <Send />
@@ -896,7 +1052,7 @@ export function PropostasTabela({
                     {podeConverter && (
                       <Button
                         size="sm"
-                        onClick={() => onConverter(proposta)}
+                        onClick={() => setPropostaParaConverter(proposta)}
                         className="cursor-pointer bg-azul-escuro text-white hover:bg-azul-escuro/90"
                       >
                         <ChevronRight />
@@ -922,31 +1078,32 @@ export function PropostasTabela({
       />
 
       <AlertDialog
-        open={confirmandoEnvio !== null}
+        open={propostaParaConverter !== null}
         onOpenChange={(isOpen) => {
-          if (!isOpen) setConfirmandoEnvio(null);
+          if (!isOpen) setPropostaParaConverter(null);
         }}
       >
-        <AlertDialogContent>
+        <AlertDialogContent overlayClassName="bg-black/60 backdrop-blur-md supports-backdrop-filter:backdrop-blur-md">
           <AlertDialogHeader>
-            <AlertDialogTitle>Enviar sugestão</AlertDialogTitle>
+            <AlertDialogTitle>Converter sugestão</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja enviar esta sugestão aos gestores? Uma
-              vez enviada, a sugestão não poderá mais ser editada.
+              Tem certeza que deseja converter esta sugestão em um planejamento
+              oficial? Após a conversão, ela não poderá mais ser editada como
+              sugestão.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setConfirmandoEnvio(null)}>
+            <AlertDialogCancel onClick={() => setPropostaParaConverter(null)}>
               Cancelar
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                if (confirmandoEnvio) onEnviar(confirmandoEnvio);
-                setConfirmandoEnvio(null);
+                if (propostaParaConverter) onConverter(propostaParaConverter);
+                setPropostaParaConverter(null);
               }}
-              className="bg-bege text-white hover:bg-bege/90"
+              className="bg-azul-escuro text-white hover:bg-azul-escuro/90"
             >
-              Enviar
+              Converter
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

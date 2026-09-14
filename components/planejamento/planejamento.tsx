@@ -447,13 +447,25 @@ export function Planejamento() {
       <main className="flex-1 bg-cinza-claro px-8 pt-4 pb-8">
         <div className="mb-4 flex items-center justify-end gap-2">
           {visao !== "normal" ? (
-            <Button
-              onClick={() => setVisao("normal")}
-              variant="outline"
-              className="cursor-pointer"
-            >
-              Voltar para planejamentos
-            </Button>
+            <>
+              <Button
+                onClick={() => setVisao("normal")}
+                variant="outline"
+                className="cursor-pointer"
+              >
+                Voltar para planejamentos
+              </Button>
+              {visao === "minhas" && (
+                <Button
+                  onClick={abrirNovaSugestao}
+                  variant="outline"
+                  className="cursor-pointer bg-bege hover:bg-bege/90 text-white hover:text-white"
+                >
+                  <Plus />
+                  Nova Sugestão
+                </Button>
+              )}
+            </>
           ) : (
             <>
               {podeRelatorio && (
@@ -475,14 +487,6 @@ export function Planejamento() {
                   >
                     <Lightbulb />
                     Minhas sugestões
-                  </Button>
-                  <Button
-                    onClick={abrirNovaSugestao}
-                    variant="outline"
-                    className="cursor-pointer bg-bege hover:bg-bege/90 text-white hover:text-white"
-                  >
-                    <Plus />
-                    Nova Sugestão
                   </Button>
                 </>
               ) : usuario?.papel ? (
@@ -1226,6 +1230,8 @@ export function Planejamento() {
         proposta={propostaEditando}
         unidadeId={unidadeId}
         papel={usuario?.papel}
+        usuarioId={usuario?.id}
+        onConverter={handleConverterSugestao}
         onSalvo={() => {
           if (usuario?.papel === "default") {
             setVisao("minhas");

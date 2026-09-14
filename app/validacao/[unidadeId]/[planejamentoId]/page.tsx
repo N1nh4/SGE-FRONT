@@ -20,7 +20,7 @@ export default async function Page({
       titulo="Validação de Comprovações"
       headerInicio={
         <Link
-          href={`/validacao/${unidadeId}?mes=${mes ?? mesAtual}&ano=${ano ?? anoAtual}`}
+          href={`/validacao?unidade=${unidadeId}&mes=${mes ?? mesAtual}&ano=${ano ?? anoAtual}`}
           className="inline-flex size-9 items-center justify-center rounded-md border border-input bg-background p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           aria-label="Voltar"
         >

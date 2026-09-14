@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
+  CalendarX,
   ExternalLink,
   FileText,
   LoaderCircle,
@@ -16,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import {
   deleteComprovacao,
+  enviarSemAtualizacao,
   fetchComprovacoes,
   fetchPlanejamentoById,
   uploadComprovacao,
@@ -24,17 +26,29 @@ import {
   type Planejamento,
   type StatusComprovacao,
 } from "@/lib/api";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const ROTULO_STATUS: Record<StatusComprovacao, string> = {
   analise: "Em análise",
   aprovado: "Aprovado",
   recusado: "Recusado",
+  sem_atualizacao: "Sem atualização",
 };
 
 const CLASSE_STATUS: Record<StatusComprovacao, string> = {
   analise: "bg-muted text-muted-foreground",
   aprovado: "bg-green-600/15 text-green-700",
   recusado: "bg-red-600/15 text-red-700",
+  sem_atualizacao: "bg-amber-600/15 text-amber-700",
 };
 
 function BadgeStatus({ status }: { status: StatusComprovacao }) {
@@ -71,6 +85,8 @@ export function PaginaComprovacoes({
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [etapaSelecionada, setEtapaSelecionada] = useState<number | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const [confirmandoSemAtualizacao, setConfirmandoSemAtualizacao] =
+    useState<number | null>(null);
 
   const indicador = useMemo(
     () =>
@@ -101,10 +117,10 @@ export function PaginaComprovacoes({
   }, [indicadorId]);
 
   const comprovacoesPorEtapa = useMemo(() => {
-    const map: Record<number, Comprovacao> = {};
+    const map: Record<number, Comprovacao[]> = {};
     for (const c of itens ?? []) {
-      if (c.etapa_id != null && !map[c.etapa_id]) {
-        map[c.etapa_id] = c;
+      if (c.etapa_id != null) {
+        (map[c.etapa_id] ??= []).push(c);
       }
     }
     return map;
@@ -134,6 +150,22 @@ export function PaginaComprovacoes({
       carregarComprovacoes();
     } catch {
       toast.error("Erro ao excluir a comprovação.");
+    }
+  }
+
+  async function handleSemAtualizacao() {
+    const etapaId = confirmandoSemAtualizacao;
+    if (etapaId == null) return;
+    setEnviando(true);
+    try {
+      await enviarSemAtualizacao(indicadorId, etapaId);
+      toast.success("Sem atualização registrada para esta etapa.");
+      setConfirmandoSemAtualizacao(null);
+      carregarComprovacoes();
+    } catch {
+      toast.error("Erro ao registrar sem atualização.");
+    } finally {
+      setEnviando(false);
     }
   }
 
@@ -207,7 +239,9 @@ export function PaginaComprovacoes({
 
             <div className="space-y-4">
               {indicador.etapas.map((etapa, index) => {
-                const comprovacao = comprovacoesPorEtapa[etapa.id];
+                const comprovacoesEtapa = comprovacoesPorEtapa[etapa.id] ?? [];
+                const comprovacao = comprovacoesEtapa[0] ?? null;
+                const historico = comprovacoesEtapa.slice(1);
                 return (
                   <div
                     key={etapa.id}
@@ -228,26 +262,36 @@ export function PaginaComprovacoes({
                     {comprovacao && comprovacao.status !== "recusado" ? (
                       <div className="flex items-center justify-between gap-3 rounded-lg border border-bege/30 bg-bege/5 p-3">
                         <div className="flex min-w-0 items-center gap-2">
-                          <FileText className="h-4 w-4 shrink-0 text-bege" />
+                          {comprovacao.status === "sem_atualizacao" ? (
+                            <CalendarX className="h-4 w-4 shrink-0 text-amber-600" />
+                          ) : (
+                            <FileText className="h-4 w-4 shrink-0 text-bege" />
+                          )}
                           <div className="min-w-0">
                             <p className="truncate text-sm font-medium">
-                              {comprovacao.arquivo_nome}
+                              {comprovacao.status === "sem_atualizacao"
+                                ? "Sem atualização neste período"
+                                : comprovacao.arquivo_nome}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              Enviada em{" "}
+                              {comprovacao.status === "sem_atualizacao"
+                                ? "Registrada em"
+                                : "Enviada em"}{" "}
                               {formatarData(comprovacao.created_at.split("T")[0])}
                             </p>
                           </div>
                         </div>
                         <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => abrirArquivoComprovacao(comprovacao.id)}
-                            aria-label="Visualizar comprovação"
-                          >
-                            <ExternalLink />
-                          </Button>
+                          {comprovacao.status !== "sem_atualizacao" && (
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => abrirArquivoComprovacao(comprovacao.id)}
+                              aria-label="Visualizar comprovação"
+                            >
+                              <ExternalLink />
+                            </Button>
+                          )}
                           {podeExcluir && (
                             <Button
                               variant="ghost"
@@ -344,16 +388,30 @@ export function PaginaComprovacoes({
                               </div>
                             </form>
                           ) : (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setEtapaSelecionada(etapa.id)}
-                              className="cursor-pointer"
-                            >
-                              <Upload />
-                              Enviar nova comprovação
-                            </Button>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setEtapaSelecionada(etapa.id)}
+                                className="cursor-pointer"
+                              >
+                                <Upload />
+                                Enviar nova comprovação
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  setConfirmandoSemAtualizacao(etapa.id)
+                                }
+                                className="cursor-pointer"
+                              >
+                                <CalendarX />
+                                Sem atualização
+                              </Button>
+                            </div>
                           ))}
                       </div>
                     ) : !podeCriar ? null : etapaSelecionada === etapa.id ? (
@@ -399,16 +457,94 @@ export function PaginaComprovacoes({
                         </div>
                       </form>
                     ) : (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setEtapaSelecionada(etapa.id)}
-                        className="cursor-pointer"
-                      >
-                        <Upload />
-                        Enviar comprovação
-                      </Button>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEtapaSelecionada(etapa.id)}
+                          className="cursor-pointer"
+                        >
+                          <Upload />
+                          Enviar comprovação
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            setConfirmandoSemAtualizacao(etapa.id)
+                          }
+                          className="cursor-pointer"
+                        >
+                          <CalendarX />
+                          Sem atualização
+                        </Button>
+                      </div>
+                    )}
+
+                    {historico.length > 0 && (
+                      <div className="mt-4 border-t pt-3">
+                        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          Histórico ({historico.length})
+                        </p>
+                        <div className="space-y-2">
+                          {historico.map((anterior) => (
+                            <div
+                              key={anterior.id}
+                              className="rounded-lg border bg-muted/30 p-3"
+                            >
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="flex min-w-0 items-center gap-2">
+                                  {anterior.status === "sem_atualizacao" ? (
+                                    <CalendarX className="h-4 w-4 shrink-0 text-amber-600" />
+                                  ) : (
+                                    <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                  )}
+                                  <div className="min-w-0">
+                                    <p className="truncate text-sm font-medium">
+                                      {anterior.status === "sem_atualizacao"
+                                        ? "Sem atualização neste período"
+                                        : anterior.arquivo_nome}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {anterior.status === "recusado"
+                                        ? "Rejeitada em"
+                                        : anterior.status === "sem_atualizacao"
+                                          ? "Registrada em"
+                                          : "Enviada em"}{" "}
+                                      {formatarData(
+                                        anterior.updated_at.split("T")[0],
+                                      )}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <BadgeStatus status={anterior.status} />
+                                  {anterior.status !== "sem_atualizacao" && (
+                                    <Button
+                                      variant="ghost"
+                                      size="icon-sm"
+                                      onClick={() =>
+                                        abrirArquivoComprovacao(anterior.id)
+                                      }
+                                      aria-label="Visualizar comprovação anterior"
+                                    >
+                                      <ExternalLink />
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                              {anterior.status === "recusado" &&
+                                anterior.justificativa && (
+                                  <p className="mt-2 rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
+                                    Justificativa: {anterior.justificativa}
+                                  </p>
+                                )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     )}
                   </div>
                 );
@@ -416,6 +552,44 @@ export function PaginaComprovacoes({
             </div>
           </div>
         </section>
+
+        <AlertDialog
+          open={confirmandoSemAtualizacao !== null}
+          onOpenChange={(open) => {
+            if (!open) setConfirmandoSemAtualizacao(null);
+          }}
+        >
+          <AlertDialogContent
+            overlayClassName="bg-black/60 backdrop-blur-md supports-backdrop-filter:backdrop-blur-md"
+            className="max-w-md"
+          >
+            <AlertDialogHeader>
+              <AlertDialogTitle>Sem atualização</AlertDialogTitle>
+              <AlertDialogDescription>
+                Confirmar que não há comprovação para esta etapa neste mês/ano?
+                Este registro não passará pela validação e não afetará a
+                porcentagem da meta.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="cursor-pointer">
+                Cancelar
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleSemAtualizacao}
+                disabled={enviando}
+                className="cursor-pointer bg-bege hover:bg-bege/90"
+              >
+                {enviando ? (
+                  <LoaderCircle className="animate-spin" />
+                ) : (
+                  <CalendarX />
+                )}
+                Confirmar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </main>
   );
 }

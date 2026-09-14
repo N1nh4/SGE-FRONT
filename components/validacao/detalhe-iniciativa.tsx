@@ -70,12 +70,14 @@ const ROTULO_STATUS: Record<StatusComprovacao, string> = {
   analise: "Em análise",
   aprovado: "Aprovado",
   recusado: "Recusado",
+  sem_atualizacao: "Sem atualização",
 };
 
 const CLASSE_STATUS: Record<StatusComprovacao, string> = {
   analise: "bg-muted text-muted-foreground",
   aprovado: "bg-green-600/15 text-green-700",
   recusado: "bg-red-600/15 text-red-700",
+  sem_atualizacao: "bg-amber-600/15 text-amber-700",
 };
 
 export function DetalheIniciativa({
@@ -133,6 +135,7 @@ export function DetalheIniciativa({
             const porEtapa = new Map<string, ComprovacaoDetalhe>();
             for (const c of comprovacoes) {
               if (c.ano !== ano || c.mes !== mes) continue;
+              if (c.status === "sem_atualizacao") continue;
               const item: ComprovacaoDetalhe = {
                 id: c.id,
                 arquivo_nome: c.arquivo_nome,
@@ -282,7 +285,7 @@ export function DetalheIniciativa({
     }
   }
 
-  const voltarHref = `/validacao/${unidadeId}?mes=${mes}&ano=${ano}${
+  const voltarHref = `/validacao?unidade=${unidadeId}&mes=${mes}&ano=${ano}${
       filtroStatus && filtroStatus !== "todos"
         ? `&status=${filtroStatus}`
         : ""

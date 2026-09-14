@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Bell,
+  CalendarX,
   Check,
   CheckCheck,
   ClipboardCheck,
@@ -27,6 +28,7 @@ type TipoNotificacao =
   | "comprovacao"
   | "comprovacao_aprovada"
   | "comprovacao_rejeitada"
+  | "sem_atualizacao"
   | "planejamento"
   | "proposta"
   | "objetivo";
@@ -36,6 +38,7 @@ const ICONES: Record<TipoNotificacao, typeof Bell> = {
   comprovacao: FileCheck,
   comprovacao_aprovada: FileCheck,
   comprovacao_rejeitada: FileCheck,
+  sem_atualizacao: CalendarX,
   planejamento: Target,
   proposta: Target,
   objetivo: Bell,
@@ -143,6 +146,16 @@ export function Notificacao() {
         return "/validacao";
       case "comprovacao_aprovada":
       case "comprovacao_rejeitada":
+        if (notificacao.entidade_id) {
+          try {
+            const contexto = await fetchComprovacaoContexto(
+              notificacao.entidade_id,
+            );
+            return `/planejamento/${contexto.planejamento_id}/comprovacoes/${contexto.indicador_id}`;
+          } catch {
+            return "/comprovacoes";
+          }
+        }
         return "/comprovacoes";
       case "validacao":
         return "/validacao";

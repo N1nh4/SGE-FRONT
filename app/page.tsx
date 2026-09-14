@@ -124,6 +124,39 @@ export default function Login() {
               {entrando ? "Entrando..." : "Entrar"}
             </Button>
           </form>
+          <div className="mt-6 border-t pt-4">
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Usuários de teste
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {[
+                {
+                  rotulo: "Master",
+                  email: "master@sge.com",
+                  senha: "teste123",
+                },
+                { rotulo: "Admin", email: "admin@sge.com", senha: "123456" },
+                {
+                  rotulo: "Default",
+                  email: "default@sge.com",
+                  senha: "123456",
+                },
+                { rotulo: "Teste", email: "teste@sge.com", senha: "123456" },
+              ].map((u) => (
+                <button
+                  key={u.rotulo}
+                  type="button"
+                  onClick={() => {
+                    setEmail(u.email);
+                    setSenha(u.senha);
+                  }}
+                  className="cursor-pointer rounded-full border border-black/[.08] bg-white px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  {u.rotulo}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </main>
     </div>

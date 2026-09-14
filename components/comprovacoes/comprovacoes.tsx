@@ -28,7 +28,8 @@ type StatusConsolidado =
   | "parcial"
   | "recusado"
   | "analise"
-  | "pendente";
+  | "pendente"
+  | "sem_atualizacao";
 
 type IndicadorLinha = {
   indicador: IndicadorPlanejamento;
@@ -49,6 +50,7 @@ const FILTROS = [
   { label: "Pendente", valor: "pendente" },
   { label: "Em Análise", valor: "analise" },
   { label: "Recusado", valor: "recusado" },
+  { label: "Sem atualização", valor: "sem_atualizacao" },
 ] as const;
 
 function statusLabel(status: StatusConsolidado): string {
@@ -63,6 +65,8 @@ function statusLabel(status: StatusConsolidado): string {
       return "Em Análise";
     case "pendente":
       return "Pendente";
+    case "sem_atualizacao":
+      return "Sem atualização";
   }
 }
 
@@ -84,6 +88,8 @@ function statusCores(status: StatusConsolidado): string {
       return "bg-blue-100 text-blue-700 border-blue-200";
     case "pendente":
       return "bg-gray-100 text-gray-500 border-gray-200";
+    case "sem_atualizacao":
+      return "bg-amber-100 text-amber-700 border-amber-200";
   }
 }
 
@@ -106,8 +112,10 @@ function calcularStatus(
     };
   }
 
-  const etapaIds = new Set(indicador.etapas.map((e) => e.id));
   const temRecusa = comprovacoes.some((c) => c.status === "recusado");
+  const temSemAtualizacao = comprovacoes.some(
+    (c) => c.status === "sem_atualizacao",
+  );
 
   let etapasAprovadas = 0;
   for (const etapa of indicador.etapas) {
@@ -126,7 +134,13 @@ function calcularStatus(
     statusConsolidado = "parcial";
   } else {
     const temAnalise = comprovacoes.some((c) => c.status === "analise");
-    statusConsolidado = temAnalise ? "analise" : "pendente";
+    if (temAnalise) {
+      statusConsolidado = "analise";
+    } else if (temSemAtualizacao) {
+      statusConsolidado = "sem_atualizacao";
+    } else {
+      statusConsolidado = "pendente";
+    }
   }
 
   return { totalEtapas, etapasAprovadas, temRecusa, statusConsolidado };
