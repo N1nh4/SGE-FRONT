@@ -12,7 +12,7 @@ type PageHeaderProps = {
 
 export function PageHeader({ titulo, subtitulo, inicio, acoes }: PageHeaderProps) {
   return (
-    <header className="flex items-center justify-between gap-4 border-b px-8 py-6 h-16">
+    <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between gap-4 border-b bg-background px-8">
       <div className="flex min-w-0 items-center gap-3">
         {inicio}
         <div className="min-w-0">

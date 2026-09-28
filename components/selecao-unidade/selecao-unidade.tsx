@@ -7,8 +7,8 @@ export function SelecaoUnidade() {
   const { unidades, selecionarUnidade, logout, usuario } = useAuth();
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-cinza-claro">
-      <div className="w-full max-w-md rounded-xl border bg-white p-8 shadow-sm">
+    <div className="flex min-h-screen items-center justify-center bg-cinza-claro p-4">
+      <div className="my-8 w-full max-w-4xl rounded-xl border bg-white p-8 shadow-sm">
         <h1 className="mb-2 text-center text-xl font-semibold">
           Selecionar Unidade
         </h1>
@@ -16,17 +16,17 @@ export function SelecaoUnidade() {
           Olá, {usuario?.nome}. Selecione a unidade que deseja acessar.
         </p>
 
-        <div className="space-y-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {unidades.map((u) => (
             <button
               key={u.id}
               onClick={() => selecionarUnidade(u.id)}
-              className="flex w-full items-center gap-3 rounded-lg border p-4 text-left transition-colors hover:bg-azul-claro/10 hover:border-azul-escuro"
+              className="flex items-center gap-3 rounded-lg border p-4 text-left transition-colors hover:bg-azul-claro/10 hover:border-azul-escuro"
             >
-              <Building2 className="size-5 text-azul-escuro" />
-              <div>
-                <p className="font-medium">{u.nome}</p>
-                <p className="text-xs text-muted-foreground">
+              <Building2 className="size-5 shrink-0 text-azul-escuro" />
+              <div className="min-w-0">
+                <p className="truncate font-medium">{u.nome}</p>
+                <p className="truncate text-xs text-muted-foreground">
                   Perfil: {u.papel}
                 </p>
               </div>

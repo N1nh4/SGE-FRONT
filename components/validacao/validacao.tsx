@@ -90,17 +90,27 @@ function statusCores(status: StatusValidacao): string {
 
 function calcularStatus(comprovacoes: Comprovacao[]): StatusValidacao {
   if (comprovacoes.length === 0) return "sem_comprovante";
-  const temAprovado = comprovacoes.some((c) => c.status === "aprovado");
-  const temAnalise = comprovacoes.some((c) => c.status === "analise");
-  const temRecusado = comprovacoes.some((c) => c.status === "recusado");
-  const temSemAtualizacao = comprovacoes.some(
-    (c) => c.status === "sem_atualizacao",
-  );
 
-  if (temRecusado) return "recusado";
-  if (temAnalise) return "analise";
-  if (temAprovado) return "aprovado";
-  if (temSemAtualizacao) return "sem_atualizacao";
+  // Só a comprovação vigente de cada etapa conta (mesma regra de
+  // indicadores.tsx): versões antigas ficam no histórico com o status antigo e
+  // não podem mais definir o status do indicador.
+  const vigentePorGrupo = new Map<string, Comprovacao>();
+  for (const c of comprovacoes) {
+    const grupo =
+      c.etapa_id != null ? `etapa-${c.etapa_id}` : `mes-${c.ano}-${c.mes}`;
+    const atual = vigentePorGrupo.get(grupo);
+    if (!atual || c.versao > atual.versao) {
+      vigentePorGrupo.set(grupo, c);
+    }
+  }
+  const vigentes = Array.from(vigentePorGrupo.values());
+
+  if (vigentes.some((c) => c.status === "recusado")) return "recusado";
+  if (vigentes.some((c) => c.status === "analise")) return "analise";
+  if (vigentes.some((c) => c.status === "aprovado")) return "aprovado";
+  if (vigentes.some((c) => c.status === "sem_atualizacao")) {
+    return "sem_atualizacao";
+  }
   return "sem_comprovante";
 }
 
