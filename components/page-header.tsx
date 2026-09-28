@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { HeaderBell } from "@/components/notificacoes/header-bell";
+import { HeaderUnidade } from "@/components/unidade/header-unidade";
 
 type PageHeaderProps = {
   titulo: string;
@@ -26,6 +27,7 @@ export function PageHeader({ titulo, subtitulo, inicio, acoes }: PageHeaderProps
       </div>
       <div className="flex shrink-0 items-center gap-2">
         {acoes}
+        <HeaderUnidade />
         <HeaderBell />
       </div>
     </header>

@@ -29,8 +29,20 @@ const navItems = [
   { label: "Unidades", href: "/unidades", icon: Building2 },
 ];
 
+function ItemTooltip({ label }: { label: string }) {
+  return (
+    <span
+      role="tooltip"
+      className="pointer-events-none absolute left-full top-1/2 z-50 ml-5 -translate-y-1/2 whitespace-nowrap rounded-lg border bg-popover px-2.5 py-1.5 text-xs font-medium text-popover-foreground opacity-0 shadow-md transition-opacity duration-150 group-hover:opacity-100"
+    >
+      <span className="absolute -left-[5px] top-1/2 size-2 -translate-y-1/2 rotate-45 border-b border-l border-border bg-popover" />
+      {label}
+    </span>
+  );
+}
+
 export function Sidebar() {
-  const { usuario, unidades, unidadeId, logout } = useAuth();
+  const { usuario, logout } = useAuth();
   const { naoLidas } = useNotificacoes();
   const pathname = usePathname();
   const [recolhido, setRecolhido] = useState<boolean>(() => {
@@ -52,67 +64,53 @@ export function Sidebar() {
       ) ?? false,
   );
 
-  const unidadeAtual = unidades.find((u) => u.id === unidadeId);
-
   function estaAtivo(href: string): boolean {
     return pathname === href || pathname.startsWith(href + "/");
   }
 
   return (
     <aside
-      className={`sticky top-0 flex h-screen shrink-0 flex-col bg-azul-escuro text-white transition-[width] duration-200 ${
+      className={`relative sticky top-0 flex h-screen shrink-0 flex-col bg-azul-escuro text-white transition-[width] duration-200 ${
         recolhido ? "w-16" : "w-64"
       }`}
     >
-      <div className="flex h-16 items-center justify-between gap-2.5 border-b border-white/10 px-4">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-white/10 text-sm font-bold">
-            S
-          </div>
-          {!recolhido && (
-            <span className="text-lg font-semibold tracking-tight">SGE</span>
-          )}
-        </div>
-        {!recolhido && (
-          <button
-            onClick={() => setRecolhido(true)}
-            className="cursor-pointer rounded p-1 text-white/60 transition-colors hover:bg-white/10 hover:text-white"
-            title="Recolher menu"
-          >
-            <ChevronLeft className="size-4" />
-          </button>
-        )}
-        {recolhido && (
-          <button
-            onClick={() => setRecolhido(false)}
-            className="cursor-pointer rounded p-1 text-white/60 transition-colors hover:bg-white/10 hover:text-white"
-            title="Expandir menu"
-          >
+      <div className="flex h-16 shrink-0 items-center border-b border-white/10">
+        <button
+          onClick={() => setRecolhido(!recolhido)}
+          className="absolute left-4 top-0 z-30 flex h-16 w-8 cursor-pointer items-center justify-center text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+          title={recolhido ? "Expandir menu" : "Recolher menu"}
+          aria-label={recolhido ? "Expandir menu" : "Recolher menu"}
+          aria-expanded={!recolhido}
+        >
+          {recolhido ? (
             <ChevronRight className="size-4" />
-          </button>
+          ) : (
+            <ChevronLeft className="size-4" />
+          )}
+        </button>
+        {!recolhido && (
+          <span className="pl-16 pr-4 text-lg font-semibold tracking-tight">
+            SGE
+          </span>
         )}
       </div>
-
-      {unidadeAtual && !recolhido && (
-        <div className="border-b border-white/10 px-6 py-3">
-          <p className="text-xs text-white/50">Unidade</p>
-          <p className="truncate text-sm font-medium">{unidadeAtual.nome}</p>
-        </div>
-      )}
 
       <nav className="flex-1 space-y-1 px-3 py-4">
         {itensVisiveis.map(({ label, href, icon: Icon }) => (
           <Link
             key={href}
             href={href}
-            title={label}
-            className={`relative flex min-h-9 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+            title={!recolhido ? label : undefined}
+            className={`group relative flex min-h-9 items-center rounded-lg text-sm font-medium transition-colors ${
+              recolhido ? "ml-0.5 size-9 justify-center" : "gap-3 px-3 py-2"
+            } ${
               estaAtivo(href)
                 ? "bg-bege text-white hover:bg-bege/90"
                 : "bg-white/10 text-white hover:bg-white/15"
             }`}
           >
             <Icon className="size-4 shrink-0" />
+            {recolhido && <ItemTooltip label={label} />}
             {!recolhido && <span className="flex-1">{label}</span>}
             {!recolhido && href === "/notificacoes" && naoLidas > 0 && (
               <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-semibold leading-none text-white">
@@ -127,32 +125,36 @@ export function Sidebar() {
         {usuario?.paginas?.some((p) => p.chave === "/configurador") && (
           <Link
             href="/configurador"
-            title="Configurações"
-            className={`flex min-h-9 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+            title={!recolhido ? "Configurações" : undefined}
+            className={`group relative flex min-h-9 items-center rounded-lg text-sm font-medium transition-colors ${
+              recolhido ? "ml-0.5 size-9 justify-center" : "gap-3 px-3 py-2"
+              } ${
               estaAtivo("/configurador")
                 ? "bg-bege text-white hover:bg-bege/90"
                 : "bg-white/10 text-white hover:bg-white/15"
             }`}
           >
             <Settings className="size-4 shrink-0" />
+            {recolhido && <ItemTooltip label="Configurações" />}
             {!recolhido && <span className="flex-1">Configurações</span>}
           </Link>
         )}
       </nav>
 
-      <div className="relative border-t border-white/10 px-4 py-4">
+      <div className="relative border-t border-white/10 py-4">
         {recolhido ? (
-          <div className="flex justify-end">
+          <div className="flex">
             <button
               onClick={logout}
-              className="cursor-pointer rounded p-1 text-white/50 transition-colors hover:bg-white/10 hover:text-white"
-              title={`Sair (${usuario?.nome})`}
+              className="group relative ml-3.5 flex size-9 cursor-pointer items-center justify-center rounded-lg text-white/50 transition-colors hover:bg-white/10 hover:text-white"
+              aria-label="Sair"
             >
               <LogOut className="size-4" />
+              <ItemTooltip label={`Sair (${usuario?.nome ?? ""})`} />
             </button>
           </div>
         ) : (
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between px-4">
             <span className="truncate text-xs text-white/70">
               {usuario?.nome}
             </span>

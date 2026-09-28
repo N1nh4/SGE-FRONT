@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -31,7 +32,7 @@ type AuthContextValue = {
   carregando: boolean;
   saiu: boolean;
   login: (email: string, senha: string) => Promise<void>;
-  selecionarUnidade: (unidadeId: number) => Promise<void>;
+  selecionarUnidade: (unidadeId: number, opcoes?: { navegar?: boolean }) => Promise<void>;
   revalidarPermissoes: () => Promise<void>;
   logout: () => void;
 };
@@ -46,6 +47,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [carregando, setCarregando] = useState(true);
   const [saiu, setSaiu] = useState(false);
   const router = useRouter();
+  const unidadesRef = useRef<UnidadeLogin[]>([]);
+
+  useEffect(() => {
+    unidadesRef.current = unidades;
+  }, [unidades]);
 
   useEffect(() => {
     const salvo = localStorage.getItem("auth");
@@ -55,10 +61,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           token: string;
           usuario: Usuario;
           unidadeId?: number;
+          unidades?: UnidadeLogin[];
         };
         setToken(parsed.token);
         setUsuario({ ...parsed.usuario, paginas: parsed.usuario.paginas ?? [] });
         if (parsed.unidadeId) setUnidadeId(parsed.unidadeId);
+        if (parsed.unidades?.length) setUnidades(parsed.unidades);
       } catch {
         localStorage.removeItem("auth");
       }
@@ -101,6 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             token: dados.token,
             usuario: usuarioCompleto,
             unidadeId: u.id,
+            unidades: dados.unidades,
           }),
         );
         setUsuario(usuarioCompleto);
@@ -124,7 +133,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
         localStorage.setItem(
           "auth",
-          JSON.stringify({ token: dados.token, usuario: usuarioBase }),
+          JSON.stringify({
+            token: dados.token,
+            usuario: usuarioBase,
+            unidades: dados.unidades,
+          }),
         );
         setUsuario(usuarioBase);
       }
@@ -133,7 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const handleSelecionarUnidade = useCallback(
-    async (novaUnidadeId: number) => {
+    async (novaUnidadeId: number, opcoes?: { navegar?: boolean }) => {
       const resultado = await selecionarUnidade(novaUnidadeId);
 
       const usuarioCompleto: Usuario = {
@@ -151,12 +164,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           token: resultado.token,
           usuario: usuarioCompleto,
           unidadeId: novaUnidadeId,
+          unidades: unidadesRef.current,
         }),
       );
       setToken(resultado.token);
       setUsuario(usuarioCompleto);
       setUnidadeId(novaUnidadeId);
-      router.push("/indicadores");
+      if (opcoes?.navegar !== false) router.push("/indicadores");
     },
     [router],
   );
@@ -195,6 +209,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return novo;
       });
       setUnidades(me.unidades);
+      const salvoUnidades = localStorage.getItem("auth");
+      if (salvoUnidades) {
+        try {
+          const parsedUnidades = JSON.parse(salvoUnidades);
+          parsedUnidades.unidades = me.unidades;
+          localStorage.setItem("auth", JSON.stringify(parsedUnidades));
+        } catch {
+          // ignora
+        }
+      }
     } catch {
       // Backend offline ou sem autenticação
     }
