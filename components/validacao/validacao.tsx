@@ -2,7 +2,20 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, LoaderCircle, Search } from "lucide-react";
+import { BarChart3, Eye, LoaderCircle, Search } from "lucide-react";
+import {
+  CORES_GRAFICO,
+  GraficoDesempenho,
+  type SerieGrafico,
+} from "@/components/graficos/grafico-desempenho";
+
+const SERIE_COMPROVACAO: SerieGrafico[] = [
+  { chave: "aprovado", rotulo: "Aprovado", cor: CORES_GRAFICO.verde },
+  { chave: "analise", rotulo: "Em análise", cor: CORES_GRAFICO.azul },
+  { chave: "recusado", rotulo: "Recusado", cor: CORES_GRAFICO.vermelho },
+  { chave: "sem_atualizacao", rotulo: "Sem atualização", cor: CORES_GRAFICO.amber },
+  { chave: "sem_comprovante", rotulo: "Sem comprovante", cor: CORES_GRAFICO.cinza },
+];
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
@@ -43,8 +56,7 @@ type IndicadorLinha = {
   iniciativaId: number;
   objetivoCodigo: string;
   objetivoNome: string;
-  unidadeId: number;
-  unidadeNome: string;
+  unidades: { id: number; nome: string }[];
   status: StatusValidacao;
   comprovacoes: Comprovacao[];
 };
@@ -144,6 +156,7 @@ export function Validacao({
   const [filtroStatus, setFiltroStatus] = useState<string>("todos");
   const [busca, setBusca] = useState("");
   const [paginaAtual, setPaginaAtual] = useState(1);
+  const [mostrarGrafico, setMostrarGrafico] = useState(false);
 
   useEffect(() => {
     fetchUnidades()
@@ -171,6 +184,10 @@ export function Validacao({
 
         const linhasNovas: IndicadorLinha[] = [];
 
+        // A comprovação pertence ao indicador, não à unidade: no modelo a
+        // tabela comprovacoes não tem unidade_id e a versão é por etapa. Uma
+        // linha por indicador, para o mesmo indicador não ser contado uma vez
+        // por unidade e os cards baterem com a página de Indicadores.
         const promessas = lista.flatMap((p) =>
           p.indicadores
             .filter((ind) =>
@@ -178,25 +195,23 @@ export function Validacao({
                 ? ind.unidades.length > 0
                 : ind.unidades.some((u) => u.id === unidadeId),
             )
-            .flatMap((indicador) => {
-              const unidadesLinha =
-                unidadeId === "todas" ? indicador.unidades : indicador.unidades.filter((u) => u.id === unidadeId);
-              return unidadesLinha.map(async (unidade) => {
-                const comprovacoes = await fetchComprovacoes(indicador.id);
-                const comprovacoesPeriodo = comprovacoes.filter(
-                  (c) => c.ano === ano && c.mes === mes,
-                );
-                linhasNovas.push({
-                  indicador,
-                  iniciativa: p.nome,
-                  iniciativaId: p.id,
-                  objetivoCodigo: p.objetivo.codigo,
-                  objetivoNome: p.objetivo.nome,
-                  unidadeId: unidade.id,
-                  unidadeNome: unidade.nome,
-                  status: calcularStatus(comprovacoesPeriodo),
-                  comprovacoes: comprovacoesPeriodo,
-                });
+            .map(async (indicador) => {
+              const comprovacoes = await fetchComprovacoes(indicador.id);
+              const comprovacoesPeriodo = comprovacoes.filter(
+                (c) => c.ano === ano && c.mes === mes,
+              );
+              linhasNovas.push({
+                indicador,
+                iniciativa: p.nome,
+                iniciativaId: p.id,
+                objetivoCodigo: p.objetivo.codigo,
+                objetivoNome: p.objetivo.nome,
+                unidades: indicador.unidades.map((u) => ({
+                  id: u.id,
+                  nome: u.nome,
+                })),
+                status: calcularStatus(comprovacoesPeriodo),
+                comprovacoes: comprovacoesPeriodo,
               });
             }),
         );
@@ -256,10 +271,94 @@ export function Validacao({
     setPaginaAtual(1);
   }, [filtroStatus, busca, unidadeId, mes, ano]);
 
+  // Aqui o objeto medido é o documento de comprovação, não o indicador: uma
+  // meta pode ter mais de um documento (um por etapa), então a contagem por
+  // linha de indicador subestimaria o volume real a validar. Conta a versão
+  // vigente de cada etapa, que é o documento que o validador realmente julga.
+  const documentos = useMemo(() => {
+    const contagem = {
+      total: 0,
+      analise: 0,
+      aprovado: 0,
+      recusado: 0,
+      sem_atualizacao: 0,
+      sem_comprovante: 0,
+    };
+
+    for (const linha of linhas) {
+      const vigentePorEtapa = new Map<string, Comprovacao>();
+      for (const c of linha.comprovacoes) {
+        const grupo = c.etapa_id != null ? `etapa-${c.etapa_id}` : "periodo";
+        const atual = vigentePorEtapa.get(grupo);
+        if (!atual || c.versao > atual.versao) vigentePorEtapa.set(grupo, c);
+      }
+
+      const vigentes = Array.from(vigentePorEtapa.values());
+      if (vigentes.length === 0) {
+        contagem.sem_comprovante += 1;
+        continue;
+      }
+
+      for (const c of vigentes) {
+        contagem.total += 1;
+        if (c.status === "aprovado") contagem.aprovado += 1;
+        else if (c.status === "analise") contagem.analise += 1;
+        else if (c.status === "recusado") contagem.recusado += 1;
+        else if (c.status === "sem_atualizacao") contagem.sem_atualizacao += 1;
+        else contagem.sem_comprovante += 1;
+      }
+    }
+
+    return contagem;
+  }, [linhas]);
+
   const totalIndicadores = linhas.length;
-  const aprovados = linhas.filter((l) => l.status === "aprovado").length;
-  const emAnalise = linhas.filter((l) => l.status === "analise").length;
-  const pendentes = linhas.filter((l) => l.status === "sem_comprovante").length;
+
+  const dadosPorUnidade = useMemo(() => {
+    const porUnidade = new Map<number, { nome: string; valores: Record<string, number> }>();
+
+    for (const linha of linhas) {
+      const vigentePorEtapa = new Map<string, Comprovacao>();
+      for (const c of linha.comprovacoes) {
+        const grupo = c.etapa_id != null ? `etapa-${c.etapa_id}` : "periodo";
+        const atual = vigentePorEtapa.get(grupo);
+        if (!atual || c.versao > atual.versao) vigentePorEtapa.set(grupo, c);
+      }
+      const vigentes = Array.from(vigentePorEtapa.values());
+
+      // A comprovação não tem unidade: ela pertence ao indicador. Quando o
+      // indicador está em várias unidades, o documento é contado em cada uma
+      // para o gestor enxergar a carga de trabalho por unidade.
+      for (const unidade of linha.unidades) {
+        const acc = porUnidade.get(unidade.id) ?? {
+          nome: unidade.nome,
+          valores: {
+            aprovado: 0,
+            analise: 0,
+            recusado: 0,
+            sem_atualizacao: 0,
+            sem_comprovante: 0,
+          },
+        };
+        if (vigentes.length === 0) {
+          acc.valores.sem_comprovante += 1;
+        } else {
+          for (const c of vigentes) {
+            if (c.status === "aprovado") acc.valores.aprovado += 1;
+            else if (c.status === "analise") acc.valores.analise += 1;
+            else if (c.status === "recusado") acc.valores.recusado += 1;
+            else if (c.status === "sem_atualizacao") acc.valores.sem_atualizacao += 1;
+            else acc.valores.sem_comprovante += 1;
+          }
+        }
+        porUnidade.set(unidade.id, acc);
+      }
+    }
+
+    return Array.from(porUnidade.values()).sort((a, b) =>
+      a.nome.localeCompare(b.nome, "pt-BR"),
+    );
+  }, [linhas]);
 
   function unidadeParam(valor: number | "todas" | null): string {
     if (valor === null) return "";
@@ -365,19 +464,14 @@ export function Validacao({
 
       {!carregando && !erro && (
         <>
-          <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-5">
             <div className="rounded-xl border bg-card p-4">
               <p className="text-xs font-medium uppercase text-muted-foreground">
-                Total de Metas
+                Documentos
               </p>
-              <p className="mt-1 text-2xl font-semibold">{totalIndicadores}</p>
-            </div>
-            <div className="rounded-xl border bg-card p-4">
-              <p className="text-xs font-medium uppercase text-muted-foreground">
-                Aprovadas
-              </p>
-              <p className="mt-1 text-2xl font-semibold text-green-600">
-                {aprovados}
+              <p className="mt-1 text-2xl font-semibold">{documentos.total}</p>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                em {totalIndicadores} indicador{totalIndicadores === 1 ? "" : "es"}
               </p>
             </div>
             <div className="rounded-xl border bg-card p-4">
@@ -385,21 +479,55 @@ export function Validacao({
                 Em Análise
               </p>
               <p className="mt-1 text-2xl font-semibold text-blue-600">
-                {emAnalise}
+                {documentos.analise}
               </p>
             </div>
             <div className="rounded-xl border bg-card p-4">
               <p className="text-xs font-medium uppercase text-muted-foreground">
-                Sem Comprovante
+                Aprovados
+              </p>
+              <p className="mt-1 text-2xl font-semibold text-green-600">
+                {documentos.aprovado}
+              </p>
+            </div>
+            <div className="rounded-xl border bg-card p-4">
+              <p className="text-xs font-medium uppercase text-muted-foreground">
+                Recusados
+              </p>
+              <p className="mt-1 text-2xl font-semibold text-red-600">
+                {documentos.recusado}
+              </p>
+            </div>
+            <div className="rounded-xl border bg-card p-4">
+              <p className="text-xs font-medium uppercase text-muted-foreground">
+                Sem atualização/comprovante
               </p>
               <p className="mt-1 text-2xl font-semibold text-muted-foreground">
-                {pendentes}
+                {documentos.sem_atualizacao + documentos.sem_comprovante}
               </p>
             </div>
           </div>
 
+          {mostrarGrafico && (
+            <div className="mb-6 rounded-xl border bg-card p-5">
+              <p className="mb-4 text-sm font-medium">
+                Documentos por unidade
+              </p>
+              {dadosPorUnidade.length === 0 ? (
+                <p className="py-10 text-center text-sm text-muted-foreground">
+                  Sem documentos no período selecionado.
+                </p>
+              ) : (
+                <GraficoDesempenho
+                  dados={dadosPorUnidade}
+                  series={SERIE_COMPROVACAO}
+                />
+              )}
+            </div>
+          )}
+
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {FILTROS.map((f) => (
                 <button
                   key={f.valor}
@@ -414,14 +542,25 @@ export function Validacao({
                 </button>
               ))}
             </div>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Buscar meta, iniciativa..."
-                value={busca}
-                onChange={(e) => setBusca(e.target.value)}
-                className="w-64 bg-white pl-8"
-              />
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setMostrarGrafico((v) => !v)}
+                className="cursor-pointer"
+              >
+                <BarChart3 className="size-4" />
+                {mostrarGrafico ? "Ocultar gráfico" : "Gráfico por unidade"}
+              </Button>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar meta, iniciativa..."
+                  value={busca}
+                  onChange={(e) => setBusca(e.target.value)}
+                  className="w-64 bg-white pl-8"
+                />
+              </div>
             </div>
           </div>
 
@@ -432,7 +571,7 @@ export function Validacao({
                   <th className="w-[9%] px-5 py-3 font-medium">Código</th>
                   <th className="w-[18%] px-5 py-3 font-medium">Iniciativa</th>
                   <th className="w-[20%] px-5 py-3 font-medium">Meta</th>
-                  <th className="w-[12%] px-5 py-3 font-medium">Unidade</th>
+                  <th className="w-[12%] px-5 py-3 font-medium">Unidades</th>
                   <th className="w-[10%] px-5 py-3 font-medium">
                     Data de envio
                   </th>
@@ -463,8 +602,13 @@ export function Validacao({
                     <td className="px-5 py-4 align-top font-medium">
                       {linha.indicador.nome}
                     </td>
-                    <td className="px-5 py-4 align-top text-muted-foreground">
-                      {linha.unidadeNome}
+                    <td
+                      className="px-5 py-4 align-top text-muted-foreground"
+                      title={linha.unidades.map((u) => u.nome).join(", ")}
+                    >
+                      <span className="line-clamp-2">
+                        {linha.unidades.map((u) => u.nome).join(", ")}
+                      </span>
                     </td>
                     <td className="px-5 py-4 align-top text-muted-foreground">
                       {linha.comprovacoes.length === 0
@@ -496,7 +640,7 @@ export function Validacao({
                             type="button"
                             size="sm"
                             onClick={() =>
-                              (window.location.href = `/validacao/${linha.unidadeId}/${linha.iniciativaId}?mes=${mes}&ano=${ano}&status=${filtroStatus}&busca=${encodeURIComponent(busca)}`)
+                              (window.location.href = `/validacao/${unidadeParam(unidadeId)}/${linha.iniciativaId}?mes=${mes}&ano=${ano}&status=${filtroStatus}&busca=${encodeURIComponent(busca)}`)
                             }
                             className="cursor-pointer border border-solid border-black/[.08] bg-white text-azul-escuro hover:bg-white/90"
                           >

@@ -18,7 +18,6 @@ import {
 } from "recharts";
 import type { LucideIcon } from "lucide-react";
 import {
-  AlertTriangle,
   CalendarClock,
   Check,
   CheckCircle2,
@@ -37,6 +36,10 @@ import {
   type Unidade,
 } from "@/lib/api";
 import { Pagination } from "@/components/ui/pagination";
+import {
+  GraficoDesempenho,
+  type SerieGrafico,
+} from "@/components/graficos/grafico-desempenho";
 
 const MESES = [
   "Janeiro",
@@ -77,6 +80,47 @@ const ROTULO_STATUS: Record<StatusPeriodo, string> = {
   sem_atualizacao: "Sem atualização",
   sem_comprovante: "Sem comprovante",
 };
+
+type LinhaIndicador = {
+  status: StatusPeriodo;
+  progresso: number;
+  prazo: string | null;
+};
+
+function motivosAtencao(
+  l: LinhaIndicador,
+  hoje: Date,
+): { rotulo: string; classe: string }[] {
+  const motivos: { rotulo: string; classe: string }[] = [];
+  if (l.status === "recusado")
+    motivos.push({ rotulo: "Comprovação recusada", classe: "text-red-600" });
+  if (l.progresso < 30)
+    motivos.push({
+      rotulo: "Progresso abaixo de 30%",
+      classe: "text-amber-600",
+    });
+  if (l.prazo && l.status !== "aprovado" && l.status !== "analise") {
+    const prazo = new Date(`${l.prazo}T23:59:59`);
+    const dias = Math.round((prazo.getTime() - hoje.getTime()) / 86400000);
+    if (dias >= 0 && dias <= 60)
+      motivos.push({ rotulo: "Prazo próximo", classe: "text-azul-escuro" });
+  }
+  return motivos;
+}
+
+type FaixaProgresso = "finalizados" | "em_andamento" | "nao_iniciados";
+
+const SERIE_PROGRESSO: SerieGrafico[] = [
+  { chave: "finalizados", rotulo: "Finalizado", cor: CORES.verde },
+  { chave: "em_andamento", rotulo: "Em andamento", cor: CORES.amber },
+  { chave: "nao_iniciados", rotulo: "Não iniciado", cor: CORES.cinza },
+];
+
+function faixaProgresso(progresso: number): FaixaProgresso {
+  if (progresso >= 100) return "finalizados";
+  if (progresso > 0) return "em_andamento";
+  return "nao_iniciados";
+}
 
 function statusPeriodo(comprovacoes: Comprovacao[]): StatusPeriodo {
   if (comprovacoes.length === 0) return "sem_comprovante";
@@ -143,19 +187,24 @@ type Linha = {
 function Painel({
   titulo,
   className = "",
+  descricao,
   children,
 }: {
   titulo: string;
   className?: string;
+  descricao?: string;
   children: React.ReactNode;
 }) {
   return (
-    <section
-      className={`rounded-xl border bg-card p-5 ${className}`.trim()}
-    >
-      <h2 className="mb-4 text-sm font-semibold text-muted-foreground">
-        {titulo}
-      </h2>
+    <section className={`rounded-xl border bg-card p-5 ${className}`.trim()}>
+      <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="text-sm font-semibold text-muted-foreground">
+          {titulo}
+        </h2>
+        {descricao && (
+          <p className="text-xs text-muted-foreground">{descricao}</p>
+        )}
+      </div>
       {children}
     </section>
   );
@@ -166,187 +215,6 @@ function SemDados({ children }: { children?: React.ReactNode }) {
     <p className="flex items-center justify-center py-14 text-sm text-muted-foreground">
       {children ?? "Sem dados no período selecionado."}
     </p>
-  );
-}
-
-type DadoDesempenho = {
-  nome: string;
-  aprovado: number;
-  analise: number;
-  recusado: number;
-  sem_atualizacao: number;
-  sem_comprovante: number;
-};
-
-const ORDEM_STACK: { chave: StatusPeriodo; cor: string }[] = [
-  { chave: "aprovado", cor: CORES.verde },
-  { chave: "analise", cor: CORES.azul },
-  { chave: "recusado", cor: CORES.vermelho },
-  { chave: "sem_atualizacao", cor: CORES.amber },
-  { chave: "sem_comprovante", cor: CORES.cinza },
-];
-
-function GraficoDesempenho({ dados }: { dados: DadoDesempenho[] }) {
-  const [ativo, setAtivo] = useState<number | null>(null);
-  const ALTURA = 260;
-  const LARGURA_EIXO = 24;
-  const MARGEM_EIXO = 8;
-  const OFFSET_EIXO = LARGURA_EIXO + MARGEM_EIXO;
-
-  const maxTotal = Math.max(
-    ...dados.map(
-      (d) =>
-        d.aprovado +
-        d.analise +
-        d.recusado +
-        d.sem_atualizacao +
-        d.sem_comprovante,
-    ),
-    1,
-  );
-
-  const step =
-    maxTotal <= 5 ? 1 : maxTotal <= 10 ? 2 : maxTotal <= 25 ? 5 : maxTotal <= 50 ? 10 : 20;
-  const yMax = Math.ceil(maxTotal / step) * step;
-  const ticks = Array.from({ length: yMax / step + 1 }, (_, i) => i * step);
-
-  const totais = dados.map(
-    (d) =>
-      d.aprovado +
-      d.analise +
-      d.recusado +
-      d.sem_atualizacao +
-      d.sem_comprovante,
-  );
-  const larguraLivre =
-    Math.max(24, Math.min(64, Math.floor(480 / Math.max(dados.length, 1))));
-
-  return (
-    <div className="w-full select-none">
-      <div className="flex" style={{ height: ALTURA }}>
-        <div
-          className="relative flex shrink-0 flex-col justify-between text-right text-[11px] tabular-nums text-muted-foreground"
-          style={{ width: LARGURA_EIXO, marginRight: MARGEM_EIXO }}
-        >
-          {ticks.map((t) => (
-            <span key={t}>{t}</span>
-          ))}
-        </div>
-
-        <div className="relative flex-1 border-l border-b border-muted-foreground/30">
-          {ticks.map((t) => (
-            <div
-              key={t}
-              className="absolute right-0 border-t border-dashed border-muted-foreground/20"
-              style={{ top: `${ALTURA - (t / yMax) * ALTURA}px`, left: 0 }}
-            />
-          ))}
-
-          <div className="absolute inset-0 flex items-end justify-evenly px-1">
-            {dados.map((d, i) => {
-              const total = totais[i];
-              const alturaPx = (total / yMax) * ALTURA;
-              const visiveis = ORDEM_STACK.filter((o) => d[o.chave] > 0);
-              const hover = ativo === i;
-
-              return (
-                <div
-                  key={d.nome}
-                  className="relative flex flex-col-reverse"
-                  style={{
-                    width: larguraLivre,
-                    height: Math.max(alturaPx, 2),
-                    opacity: ativo !== null && !hover ? 0.45 : 1,
-                    transition: "opacity 150ms",
-                  }}
-                  onMouseEnter={() => setAtivo(i)}
-                  onMouseLeave={() => setAtivo(null)}
-                >
-                  {ORDEM_STACK.map((o, idx) => {
-                    const valor = d[o.chave];
-                    if (valor === 0) return null;
-                    const ehBase = o.chave === visiveis[0]?.chave;
-                    const ehTopo = o.chave === visiveis[visiveis.length - 1]?.chave;
-                    return (
-                      <div
-                        key={o.chave}
-                        className="min-h-1"
-                        style={{
-                          backgroundColor: o.cor,
-                          height: (valor / yMax) * ALTURA,
-                          borderTopLeftRadius: ehTopo ? 4 : 0,
-                          borderTopRightRadius: ehTopo ? 4 : 0,
-                          borderBottomLeftRadius: ehBase ? 4 : 0,
-                          borderBottomRightRadius: ehBase ? 4 : 0,
-                        }}
-                      />
-                    );
-                  })}
-
-                  {hover && (
-                    <div className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded-lg border bg-popover p-2.5 text-xs shadow-md">
-                      <p className="mb-1 font-semibold">{d.nome}</p>
-                      {ORDEM_STACK.filter((o) => d[o.chave] > 0).map((o) => (
-                        <p
-                          key={o.chave}
-                          className="flex items-center justify-between gap-3 py-0.5"
-                        >
-                          <span className="flex items-center gap-1.5">
-                            <span
-                              className="inline-block size-2 rounded-full"
-                              style={{ backgroundColor: o.cor }}
-                            />
-                            {ROTULO_STATUS[o.chave]}
-                          </span>
-                          <span className="font-semibold tabular-nums">
-                            {d[o.chave]}
-                          </span>
-                        </p>
-                      ))}
-                      <p className="mt-1 flex items-center justify-between gap-3 border-t pt-1 font-semibold tabular-nums">
-                        <span>Total</span>
-                        <span>{total}</span>
-                      </p>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      <div
-        className="mt-2 flex justify-evenly px-1"
-        style={{ marginLeft: OFFSET_EIXO }}
-      >
-        {dados.map((d) => (
-          <span
-            key={d.nome}
-            className="truncate text-center text-xs text-muted-foreground"
-            style={{ width: larguraLivre }}
-            title={d.nome}
-          >
-            {d.nome}
-          </span>
-        ))}
-      </div>
-
-      <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5">
-        {ORDEM_STACK.map((o) => (
-          <span
-            key={o.chave}
-            className="flex items-center gap-1.5 text-xs text-muted-foreground"
-          >
-            <span
-              className="inline-block size-2.5 rounded-full"
-              style={{ backgroundColor: o.cor }}
-            />
-            {ROTULO_STATUS[o.chave]}
-          </span>
-        ))}
-      </div>
-    </div>
   );
 }
 
@@ -492,16 +360,18 @@ export function Indicadores() {
             10,
         ) / 10;
 
-  const emAnalise = linhas.filter((l) => l.status === "analise").length;
-  const aprovados = linhas.filter((l) => l.status === "aprovado").length;
-  const recusados = linhas.filter((l) => l.status === "recusado").length;
-  const semAtualizacao = linhas.filter(
-    (l) => l.status === "sem_atualizacao",
+  // Aqui o objeto medido é o indicador, não o documento. Os estados de
+  // comprovação (aprovado, em análise, recusado) pertencem à Validação, onde
+  // uma meta pode ter mais de um documento. Aqui o corte é pelo progresso.
+  const finalizados = linhas.filter(
+    (l) => faixaProgresso(l.progresso) === "finalizados",
   ).length;
-  const semComprovante = linhas.filter(
-    (l) => l.status === "sem_comprovante",
+  const emAndamento = linhas.filter(
+    (l) => faixaProgresso(l.progresso) === "em_andamento",
   ).length;
-  const semNada = semAtualizacao + semComprovante;
+  const naoIniciados = linhas.filter(
+    (l) => faixaProgresso(l.progresso) === "nao_iniciados",
+  ).length;
 
   const kpis: {
     titulo: string;
@@ -513,74 +383,51 @@ export function Indicadores() {
       titulo: "Total de indicadores",
       valor: totalIndicadores,
       icon: Target,
-      cor: CORES.azulEscuro,
-    },
-    {
-      titulo: "Em análise",
-      valor: emAnalise,
-      icon: ClipboardList,
       cor: CORES.azul,
     },
     {
-      titulo: "Aprovados",
-      valor: aprovados,
+      titulo: "Finalizado",
+      valor: finalizados,
       icon: CheckCircle2,
       cor: CORES.verde,
     },
     {
-      titulo: "Recusados",
-      valor: recusados,
-      icon: AlertTriangle,
-      cor: CORES.vermelho,
-    },
-    {
-      titulo: "Sem atualização/comprovante",
-      valor: semNada,
-      icon: MinusCircle,
+      titulo: "Em andamento",
+      valor: emAndamento,
+      icon: ClipboardList,
       cor: CORES.amber,
     },
-  ];
-
-  const kpisComStatus: { label: string; valor: number; cor: string }[] = [
-    { label: "Sem atualização", valor: semAtualizacao, cor: CORES.amber },
-    { label: "Sem comprovante", valor: semComprovante, cor: CORES.cinza },
+    {
+      titulo: "Não iniciado",
+      valor: naoIniciados,
+      icon: MinusCircle,
+      cor: CORES.cinza,
+    },
   ];
 
   const dadosDesempenho = useMemo(() => {
     if (!planejamentos) return [];
     const acumulo = new Map<
       number,
-      {
-        nome: string;
-        aprovado: number;
-        analise: number;
-        recusado: number;
-        sem_atualizacao: number;
-        sem_comprovante: number;
-      }
+      { nome: string; valores: Record<string, number> }
     >();
     for (const p of planejamentos) {
       if (filtroObjetivo !== "todos" && p.objetivo.id !== filtroObjetivo)
         continue;
       for (const ind of p.indicadores) {
-        const periodo = (comprovacoes[ind.id] ?? []).filter(
-          (c) => c.ano === ano && c.mes === mes,
-        );
-        const status = statusPeriodo(periodo);
+        const faixa = faixaProgresso(ind.progresso);
         for (const u of ind.unidades) {
           if (filtroUnidades.length > 0 && !filtroUnidades.includes(u.id))
             continue;
-          const atual =
-            acumulo.get(u.id) ??
-            {
-              nome: u.nome,
-              aprovado: 0,
-              analise: 0,
-              recusado: 0,
-              sem_atualizacao: 0,
-              sem_comprovante: 0,
-            };
-          atual[status] += 1;
+          const atual = acumulo.get(u.id) ?? {
+            nome: u.nome,
+            valores: {
+              finalizados: 0,
+              em_andamento: 0,
+              nao_iniciados: 0,
+            },
+          };
+          atual.valores[faixa] += 1;
           acumulo.set(u.id, atual);
         }
       }
@@ -588,27 +435,21 @@ export function Indicadores() {
     return Array.from(acumulo.values())
       .filter(
         (d) =>
-          d.aprovado +
-            d.analise +
-            d.recusado +
-            d.sem_atualizacao +
-            d.sem_comprovante >
+          d.valores.finalizados +
+            d.valores.em_andamento +
+            d.valores.nao_iniciados >
           0,
       )
       .sort(
         (a, b) =>
-          b.aprovado +
-          b.analise +
-          b.recusado +
-          b.sem_atualizacao +
-          b.sem_comprovante -
-          (a.aprovado +
-            a.analise +
-            a.recusado +
-            a.sem_atualizacao +
-            a.sem_comprovante),
+          b.valores.finalizados +
+          b.valores.em_andamento +
+          b.valores.nao_iniciados -
+          (a.valores.finalizados +
+            a.valores.em_andamento +
+            a.valores.nao_iniciados),
       );
-  }, [planejamentos, comprovacoes, filtroUnidades, filtroObjetivo, ano, mes]);
+  }, [planejamentos, filtroUnidades, filtroObjetivo]);
 
   const dadosAvancao = useMemo(() => {
     const mapa = new Map<
@@ -634,6 +475,9 @@ export function Indicadores() {
       .sort((a, b) => b.progresso - a.progresso);
   }, [linhas]);
 
+  // Curva de crescimento dos indicadores finalizados, agregada no recorte todo
+  // (nunca por indicador). Um indicador entra no mês em que sua última etapa
+  // foi aprovada, que é quando ele chega a 100%.
   const dadosEvolucao = useMemo(() => {
     const meses: { chave: string; rotulo: string }[] = [];
     for (let i = 11; i >= 0; i--) {
@@ -645,38 +489,66 @@ export function Indicadores() {
         ).slice(2)}`,
       });
     }
-    const ids = new Set(linhas.map((l) => l.indicadorId));
-    return meses.map((m) => ({
-      mes: m.rotulo,
-      envios: Object.entries(comprovacoes).reduce((soma, [id, lista]) => {
-        if (!ids.has(Number(id))) return soma;
-        return (
-          soma +
-          lista.filter((c) => c.created_at?.slice(0, 7) === m.chave).length
-        );
-      }, 0),
-    }));
+
+    const finalizarEm = new Map<string, number>();
+    for (const l of linhas) {
+      if (l.progresso < 100) continue;
+
+      const lista = comprovacoes[l.indicadorId] ?? [];
+      const vigentePorEtapa = new Map<number, Comprovacao>();
+      for (const c of lista) {
+        if (c.status !== "aprovado" || c.etapa_id == null) continue;
+        const atual = vigentePorEtapa.get(c.etapa_id);
+        if (!atual || c.versao > atual.versao)
+          vigentePorEtapa.set(c.etapa_id, c);
+      }
+      const aprovacoes = Array.from(vigentePorEtapa.values())
+        .map((c) => c.created_at ?? c.updated_at)
+        .filter((d): d is string => Boolean(d));
+
+      const ultima = aprovacoes.sort().at(-1);
+      const referencia = ultima?.slice(0, 7) ?? l.prazo?.slice(0, 7);
+      if (!referencia) continue;
+      finalizarEm.set(referencia, (finalizarEm.get(referencia) ?? 0) + 1);
+    }
+
+    let acumulado = 0;
+    return meses.map((m) => {
+      const noMes = finalizarEm.get(m.chave) ?? 0;
+      acumulado += noMes;
+      return { mes: m.rotulo, noMes, acumulado };
+    });
   }, [linhas, comprovacoes, ano, mes]);
 
+  // A tabela lista todos os indicadores do recorte (o total tem que bater com o
+  // card "Total de indicadores"); o que muda aqui é a ordenação e o motivo do
+  // destaque, não a quantidade de linhas. Filtrar por atenção esconderia parte
+  // dos indicadores e o total da tabela não fecharia com o KPI.
   const atencao = useMemo(() => {
     const hoje = new Date();
-    return linhas
-      .filter((l) => {
-        if (l.status === "recusado") return true;
-        if (l.progresso < 30) return true;
-        if (l.prazo && l.status !== "aprovado" && l.status !== "analise") {
-          const prazo = new Date(`${l.prazo}T23:59:59`);
-          const dias = Math.round((prazo.getTime() - hoje.getTime()) / 86400000);
-          if (dias >= 0 && dias <= 60) return true;
-        }
-        return false;
-      })
-      .sort((a, b) => {
-        if (a.status === "recusado" && b.status !== "recusado") return -1;
-        if (b.status === "recusado" && a.status !== "recusado") return 1;
-        return a.progresso - b.progresso;
-      });
+    const prioridade = (l: (typeof linhas)[number]) => {
+      if (l.status === "recusado") return 0;
+      if (motivosAtencao(l, hoje).length > 0) return 1;
+      return 2;
+    };
+    return [...linhas].sort((a, b) => {
+      const pa = prioridade(a);
+      const pb = prioridade(b);
+      if (pa !== pb) return pa - pb;
+      if (a.status === "recusado" && b.status !== "recusado") return -1;
+      if (b.status === "recusado" && a.status !== "recusado") return 1;
+      return a.progresso - b.progresso;
+    });
   }, [linhas]);
+
+  const totalEmAtencao = useMemo(
+    () =>
+      atencao.filter(
+        (l) =>
+          l.status === "recusado" || motivosAtencao(l, new Date()).length > 0,
+      ).length,
+    [atencao],
+  );
 
   const totalPaginasAtencao = Math.max(
     1,
@@ -847,13 +719,14 @@ export function Indicadores() {
             onChange={(e) => setAno(Number(e.target.value))}
             className={campoSelect}
           >
-            {Array.from({ length: 5 }, (_, i) => agora.getFullYear() - 4 + i).map(
-              (a) => (
-                <option key={a} value={a}>
-                  {a}
-                </option>
-              ),
-            )}
+            {Array.from(
+              { length: 5 },
+              (_, i) => agora.getFullYear() - 4 + i,
+            ).map((a) => (
+              <option key={a} value={a}>
+                {a}
+              </option>
+            ))}
           </select>
         </div>
       </section>
@@ -873,7 +746,7 @@ export function Indicadores() {
 
       {!carregando && !erro && (
         <div className="flex flex-col gap-6">
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-5">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             {kpis.map((k) => (
               <div
                 key={k.titulo}
@@ -883,22 +756,12 @@ export function Indicadores() {
                   <span className="text-xs leading-snug font-medium text-muted-foreground">
                     {k.titulo}
                   </span>
-                  <k.icon className="size-4 shrink-0" style={{ color: k.cor }} />
+                  <k.icon
+                    className="size-4 shrink-0"
+                    style={{ color: k.cor }}
+                  />
                 </div>
                 <span className="text-2xl font-semibold">{k.valor}</span>
-                {k.titulo === "Sem atualização/comprovante" && (
-                  <div className="flex flex-col gap-1 text-[11px] text-muted-foreground">
-                    {kpisComStatus.map((s) => (
-                      <span key={s.label} className="flex items-center gap-1.5">
-                        <span
-                          className="inline-block size-1.5 rounded-full"
-                          style={{ backgroundColor: s.cor }}
-                        />
-                        {s.label}: {s.valor}
-                      </span>
-                    ))}
-                  </div>
-                )}
               </div>
             ))}
           </div>
@@ -947,18 +810,21 @@ export function Indicadores() {
               {dadosDesempenho.length === 0 ? (
                 <SemDados />
               ) : (
-                <GraficoDesempenho dados={dadosDesempenho} />
+                <GraficoDesempenho
+                  dados={dadosDesempenho}
+                  series={SERIE_PROGRESSO}
+                />
               )}
             </Painel>
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <Painel titulo="Evolução de envios (últimos 12 meses)">
+            <Painel titulo="Curva de finalização (últimos 12 meses)">
               <ResponsiveContainer width="100%" height={260}>
                 <AreaChart data={dadosEvolucao}>
                   <defs>
                     <linearGradient
-                      id="gradEnvios"
+                      id="gradFinalizados"
                       x1="0"
                       y1="0"
                       x2="0"
@@ -995,11 +861,11 @@ export function Indicadores() {
                   <Tooltip />
                   <Area
                     type="monotone"
-                    dataKey="envios"
-                    name="Envios"
+                    dataKey="acumulado"
+                    name="Indicadores finalizados"
                     stroke={CORES.bege}
                     strokeWidth={2}
-                    fill="url(#gradEnvios)"
+                    fill="url(#gradFinalizados)"
                     dot={{
                       r: 4,
                       fill: CORES.bege,
@@ -1068,9 +934,13 @@ export function Indicadores() {
             </Painel>
           </div>
 
-          <Painel titulo="Atenção" className="mb-2">
+          <Painel
+            titulo="Atenção"
+            className="mb-2"
+            descricao={`${totalEmAtencao} de ${atencao.length} indicadores precisam de acompanhamento`}
+          >
             {atencao.length === 0 ? (
-              <SemDados>Nenhum indicador requer atenção.</SemDados>
+              <SemDados>Nenhum indicador cadastrado no recorte.</SemDados>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -1080,13 +950,15 @@ export function Indicadores() {
                       <th className="p-3 font-semibold">Iniciativa</th>
                       <th className="p-3 font-semibold">Unidade</th>
                       <th className="p-3 font-semibold">Status</th>
-                      <th className="p-3 text-right font-semibold">Progresso</th>
+                      <th className="p-3 text-right font-semibold">
+                        Progresso
+                      </th>
                       <th className="p-3 font-semibold">Prazo</th>
                       <th className="p-3 text-right font-semibold"></th>
                     </tr>
                   </thead>
                   <tbody>
-                    {atencaoPagina.map((l, i) => (
+                    {atencaoPagina.map((l) => (
                       <tr
                         key={l.indicadorId}
                         className="border-b last:border-0"

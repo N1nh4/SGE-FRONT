@@ -88,7 +88,7 @@ export function DetalheIniciativa({
   filtroStatus,
   busca,
 }: {
-  unidadeId: number;
+  unidadeId: number | "todas";
   planejamentoId: number;
   mes: number;
   ano: number;
@@ -110,6 +110,7 @@ export function DetalheIniciativa({
   const [salvando, setSalvando] = useState(false);
 
   useEffect(() => {
+    if (unidadeId === "todas") return;
     fetchUnidades()
       .then((unidades) => {
         const encontrada = unidades.find((u) => u.id === unidadeId);
@@ -129,7 +130,11 @@ export function DetalheIniciativa({
 
         for (const pj of lista) {
           for (const indicador of pj.indicadores) {
-            if (!indicador.unidades.some((u) => u.id === unidadeId)) continue;
+            if (
+              unidadeId !== "todas" &&
+              !indicador.unidades.some((u) => u.id === unidadeId)
+            )
+              continue;
 
             const comprovacoes = await fetchComprovacoes(indicador.id);
             const porEtapa = new Map<string, ComprovacaoDetalhe>();

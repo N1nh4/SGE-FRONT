@@ -29,7 +29,11 @@ export default async function Page({
       }
     >
       <DetalheIniciativa
-        unidadeId={Number(unidadeId)}
+        unidadeId={
+          unidadeId === "todas" || unidadeId === "all"
+            ? "todas"
+            : Number(unidadeId)
+        }
         planejamentoId={Number(planejamentoId)}
         mes={Number(mes ?? mesAtual)}
         ano={Number(ano ?? anoAtual)}
