@@ -129,9 +129,9 @@ export function Notificacao() {
       case "proposta":
         return "/planejamento?tela=recebidas";
       case "planejamento":
-        return notificacao.entidade_id
-          ? `/planejamento/${notificacao.entidade_id}`
-          : "/planejamento";
+        // A página de detalhes do planejamento está desativada, então a
+        // notificação leva para a listagem.
+        return "/planejamento";
       case "comprovacao":
         if (notificacao.entidade_id) {
           try {

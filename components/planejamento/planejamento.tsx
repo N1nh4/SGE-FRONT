@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import {
   Check,
   ChevronDown,
@@ -88,7 +88,6 @@ function formatarData(iso: string): string {
 }
 
 export function Planejamento() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const { usuario, unidadeId } = useAuth();
   const { refresh: refreshNotificacoes } = useNotificacoes();
@@ -573,8 +572,7 @@ export function Planejamento() {
                   {paginasVisiveis.map((item) => (
                     <tr
                       key={item.id}
-                      onClick={() => router.push(`/planejamento/${item.id}`)}
-                      className="cursor-pointer border-b last:border-0 transition-colors hover:bg-muted/50"
+                      className="border-b last:border-0"
                     >
                       <td className="px-5 py-4 align-top">
                         <span className="border border-solid border-black/[.08] inline-flex w-fit rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
