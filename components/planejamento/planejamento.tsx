@@ -65,6 +65,7 @@ type IndicadorForm = {
   rotuloY: string;
   orientacao: string;
   prazo: string;
+  anual: boolean;
   unidadeIds: string[];
   etapas: string[];
 };
@@ -77,6 +78,7 @@ function indicadorVazio(): IndicadorForm {
     rotuloY: "",
     orientacao: "",
     prazo: "",
+    anual: false,
     unidadeIds: [],
     etapas: [],
   };
@@ -287,6 +289,7 @@ export function Planejamento() {
         rotuloY: indicador.rotulo_y,
         orientacao: indicador.orientacao,
         prazo: indicador.prazo ?? "",
+        anual: indicador.anual,
         unidadeIds: indicador.unidades.map((u) => String(u.id)),
         etapas: indicador.etapas.map((e) => e.nome),
       })),
@@ -304,6 +307,21 @@ export function Planejamento() {
       prev.map((indicador, i) =>
         i === index ? { ...indicador, [campo]: valor } : indicador,
       ),
+    );
+  }
+
+  function alternarAnual(index: number, marcado: boolean) {
+    setIndicadores((prev) =>
+      prev.map((indicador, i) => {
+        if (i !== index) return indicador;
+        // Marcando anual sem data, sugere o fim do ano corrente. O que se repete
+        // é o dia/mês escolhido — o ano é sempre o corrente.
+        const prazo =
+          marcado && !indicador.prazo
+            ? `${new Date().getFullYear()}-12-31`
+            : indicador.prazo;
+        return { ...indicador, anual: marcado, prazo };
+      }),
     );
   }
 
@@ -429,6 +447,7 @@ export function Planejamento() {
         rotulo_y: indicador.rotuloY,
         orientacao: indicador.orientacao,
         prazo: indicador.prazo || null,
+        anual: indicador.anual,
         unidade_ids: indicador.unidadeIds.map(Number),
         etapas: indicador.etapas,
       })),
@@ -1022,6 +1041,24 @@ export function Planejamento() {
                               }
                               className="focus-visible:ring-0 focus-visible:border-input bg-white"
                             />
+                            <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <input
+                                type="checkbox"
+                                checked={indicador.anual}
+                                onChange={(event) =>
+                                  alternarAnual(index, event.target.checked)
+                                }
+                                className="size-4 rounded border-gray-300"
+                              />
+                              Repete todo ano
+                            </label>
+                            {indicador.anual && indicador.prazo && (
+                              <p className="text-xs text-muted-foreground">
+                                Vence todo ano em{" "}
+                                {indicador.prazo.slice(8, 10)}/
+                                {indicador.prazo.slice(5, 7)}.
+                              </p>
+                            )}
                           </div>
 
                           <div className="grid gap-2">

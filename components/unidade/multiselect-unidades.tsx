@@ -39,8 +39,12 @@ export function MultiselectUnidades({
 
   const filtradas = useMemo(() => {
     const termo = busca.trim().toLowerCase();
-    if (!termo) return unidades;
-    return unidades.filter((u) => u.nome.toLowerCase().includes(termo));
+    const lista = termo
+      ? unidades.filter((u) => u.nome.toLowerCase().includes(termo))
+      : unidades;
+    // A lista chega do banco em ordem de cadastro (por id). Ordena por nome
+    // numa cópia para não mutar a array que veio por props.
+    return [...lista].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
   }, [unidades, busca]);
 
   const alternar = (id: number) => {

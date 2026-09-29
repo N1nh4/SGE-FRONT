@@ -683,7 +683,10 @@ export function Validacao({
                       </span>
                     </td>
                     <td className="px-5 py-4 align-top text-muted-foreground">
-                      {formatarPrazo(linha.indicador.prazo)}
+                      {formatarPrazo(
+                        linha.indicador.prazo_efetivo ??
+                          linha.indicador.prazo,
+                      )}
                     </td>
                     <td className="px-5 py-4 align-top">
                       <div className="flex items-center justify-end gap-2">

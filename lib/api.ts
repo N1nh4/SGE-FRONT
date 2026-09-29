@@ -157,6 +157,8 @@ export type IndicadorPlanejamento = {
   rotulo_y: string;
   orientacao: string;
   prazo: string | null;
+  anual: boolean;
+  prazo_efetivo: string | null;
   unidades: UnidadeResumo[];
   etapas: Etapa[];
   progresso: number;
@@ -181,6 +183,7 @@ export type NovoIndicador = {
   rotulo_y: string;
   orientacao: string;
   prazo: string | null;
+  anual: boolean;
   unidade_ids: number[];
   etapas: string[];
 };
@@ -676,6 +679,8 @@ export type PropostaIndicador = {
   rotulo_y: string | null;
   orientacao: string | null;
   prazo: string | null;
+  anual: boolean;
+  prazo_efetivo: string | null;
   unidades: UnidadeResumo[];
   etapas: PropostaEtapa[];
 };
@@ -700,6 +705,7 @@ export type NovoPropostaIndicador = {
   rotulo_y?: string | null;
   orientacao?: string | null;
   prazo?: string | null;
+  anual?: boolean;
   unidade_ids: number[];
   etapas: { nome: string }[];
 };

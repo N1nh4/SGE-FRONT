@@ -164,7 +164,10 @@ export function DetalhePlanejamento({ id }: { id: number }) {
                   <div className="mt-4 flex flex-wrap gap-4 text-sm">
                     <span className="flex items-center gap-2 text-muted-foreground">
                       <CalendarDays className="h-4 w-4" />
-                      Prazo: {formatarData(indicador.prazo)}
+                      Prazo:{" "}
+                      {formatarData(
+                        indicador.prazo_efetivo ?? indicador.prazo,
+                      )}
                     </span>
                     <span className="flex items-center gap-2 text-muted-foreground">
                       <User className="h-4 w-4" />

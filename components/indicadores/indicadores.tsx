@@ -178,6 +178,7 @@ type Linha = {
   objetivo: string;
   objetivoId: number;
   prazo: string | null;
+  anual: boolean;
   progresso: number;
   status: StatusPeriodo;
   unidades: string;
@@ -307,7 +308,8 @@ export function Indicadores() {
           iniciativaId: p.id,
           objetivo: p.objetivo.nome,
           objetivoId: p.objetivo.id,
-          prazo: ind.prazo,
+          prazo: ind.prazo_efetivo ?? ind.prazo,
+          anual: ind.anual,
           progresso: ind.progresso,
           status: statusPeriodo(periodo),
           unidades: ind.unidades.map((u) => u.nome).join(", "),
