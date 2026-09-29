@@ -2,8 +2,21 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Eye, MessageSquareWarning } from "lucide-react";
+import { BarChart3, Search, Eye, MessageSquareWarning } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  CORES_GRAFICO,
+  GraficoDesempenho,
+  type SerieGrafico,
+} from "@/components/graficos/grafico-desempenho";
+
+const SERIE_COMPROVACAO: SerieGrafico[] = [
+  { chave: "aprovado", rotulo: "Aprovado", cor: CORES_GRAFICO.verde },
+  { chave: "analise", rotulo: "Em análise", cor: CORES_GRAFICO.azul },
+  { chave: "recusado", rotulo: "Recusado", cor: CORES_GRAFICO.vermelho },
+  { chave: "sem_atualizacao", rotulo: "Sem atualização", cor: CORES_GRAFICO.amber },
+  { chave: "sem_comprovante", rotulo: "Sem comprovante", cor: CORES_GRAFICO.cinza },
+];
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import {
@@ -17,7 +30,6 @@ import { useAuth } from "@/context/auth-context";
 import {
   fetchPlanejamento,
   fetchComprovacoes,
-  type Planejamento,
   type IndicadorPlanejamento,
   type Comprovacao,
   type ObjetivoResumo,
@@ -148,7 +160,7 @@ function calcularStatus(
 
 export function Comprovacoes() {
   const router = useRouter();
-  const { usuario, unidadeId } = useAuth();
+  const { usuario, unidadeId, unidades: unidadesDoUsuario } = useAuth();
   const [linhas, setLinhas] = useState<IndicadorLinha[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [filtroStatus, setFiltroStatus] = useState<string>("todos");
@@ -156,6 +168,7 @@ export function Comprovacoes() {
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [recusadasAbertas, setRecusadasAbertas] =
     useState<IndicadorLinha | null>(null);
+  const [mostrarGrafico, setMostrarGrafico] = useState(false);
 
   useEffect(() => {
     async function carregar() {
@@ -255,22 +268,93 @@ export function Comprovacoes() {
   const aprovados = linhas.filter(
     (l) => l.statusConsolidado === "aprovado",
   ).length;
-  const pendentes = linhas.filter(
-    (l) => l.statusConsolidado === "pendente",
-  ).length;
   const emAnalise = linhas.filter(
     (l) => l.statusConsolidado === "analise",
   ).length;
+  const parciais = linhas.filter(
+    (l) => l.statusConsolidado === "parcial",
+  ).length;
+  const recusados = linhas.filter(
+    (l) => l.statusConsolidado === "recusado",
+  ).length;
+  // Mesmo agrupamento da Validação: quem não tem documento nenhum e quem
+  // registrou "sem atualização" são a mesma faixa de pendência.
+  const semAtualizacao = linhas.filter(
+    (l) =>
+      l.statusConsolidado === "pendente" ||
+      l.statusConsolidado === "sem_atualizacao",
+  ).length;
+
+  // Gráfico restrito à unidade do usuário: nesta tela não existe seleção de
+  // unidade, então o comparativo entre unidades não se aplica. Conta a versão
+  // vigente de cada etapa, que é o documento que está de fato em validação.
+  const dadosGraficoUnidade = useMemo(() => {
+    const nomeUnidade =
+      unidadesDoUsuario.find((u) => u.id === unidadeId)?.nome ??
+      linhas[0]?.responsavel ??
+      "Minha unidade";
+
+    const valores = {
+      aprovado: 0,
+      analise: 0,
+      recusado: 0,
+      sem_atualizacao: 0,
+      sem_comprovante: 0,
+    };
+
+    for (const linha of linhas) {
+      if (
+        unidadeId != null &&
+        !linha.indicador.unidades.some((u) => u.id === unidadeId)
+      )
+        continue;
+
+      const vigentePorEtapa = new Map<string, Comprovacao>();
+      for (const c of linha.comprovacoes) {
+        const grupo = c.etapa_id != null ? `etapa-${c.etapa_id}` : "periodo";
+        const atual = vigentePorEtapa.get(grupo);
+        if (!atual || c.versao > atual.versao) vigentePorEtapa.set(grupo, c);
+      }
+      const vigentes = Array.from(vigentePorEtapa.values());
+
+      if (vigentes.length === 0) {
+        valores.sem_comprovante += 1;
+        continue;
+      }
+      for (const c of vigentes) {
+        if (c.status === "aprovado") valores.aprovado += 1;
+        else if (c.status === "analise") valores.analise += 1;
+        else if (c.status === "recusado") valores.recusado += 1;
+        else if (c.status === "sem_atualizacao") valores.sem_atualizacao += 1;
+        else valores.sem_comprovante += 1;
+      }
+    }
+
+    return [{ nome: nomeUnidade, valores }];
+  }, [linhas, unidadesDoUsuario, unidadeId]);
 
   return (
     <>
       <main className="flex-1 bg-cinza-claro p-8">
-        <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-5">
           <div className="rounded-xl border bg-card p-4">
             <p className="text-xs font-medium uppercase text-muted-foreground">
               Total de Metas
             </p>
             <p className="mt-1 text-2xl font-semibold">{totalIndicadores}</p>
+          </div>
+          <div className="rounded-xl border bg-card p-4">
+            <p className="text-xs font-medium uppercase text-muted-foreground">
+              Em Análise
+            </p>
+            <p className="mt-1 text-2xl font-semibold text-blue-600">
+              {emAnalise}
+            </p>
+            {parciais > 0 && (
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                {parciais} parciais
+              </p>
+            )}
           </div>
           <div className="rounded-xl border bg-card p-4">
             <p className="text-xs font-medium uppercase text-muted-foreground">
@@ -282,21 +366,31 @@ export function Comprovacoes() {
           </div>
           <div className="rounded-xl border bg-card p-4">
             <p className="text-xs font-medium uppercase text-muted-foreground">
-              Em Análise
+              Recursados
             </p>
-            <p className="mt-1 text-2xl font-semibold text-blue-600">
-              {emAnalise}
+            <p className="mt-1 text-2xl font-semibold text-red-600">
+              {recusados}
             </p>
           </div>
           <div className="rounded-xl border bg-card p-4">
             <p className="text-xs font-medium uppercase text-muted-foreground">
-              Pendentes
+              Sem atualização/comprovante
             </p>
             <p className="mt-1 text-2xl font-semibold text-muted-foreground">
-              {pendentes}
+              {semAtualizacao}
             </p>
           </div>
         </div>
+
+        {mostrarGrafico && (
+          <div className="mb-6 rounded-xl border bg-card p-5">
+            <p className="mb-4 text-sm font-medium">Comprovantes da unidade</p>
+            <GraficoDesempenho
+              dados={dadosGraficoUnidade}
+              series={SERIE_COMPROVACAO}
+            />
+          </div>
+        )}
 
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap gap-2">
@@ -314,14 +408,25 @@ export function Comprovacoes() {
               </button>
             ))}
           </div>
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Buscar meta..."
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              className="pl-8 w-64 bg-white"
-            />
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setMostrarGrafico((v) => !v)}
+              className="cursor-pointer"
+            >
+              <BarChart3 className="size-4" />
+              {mostrarGrafico ? "Ocultar gráfico" : "Gráfico da unidade"}
+            </Button>
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Buscar meta..."
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                className="pl-8 w-64 bg-white"
+              />
+            </div>
           </div>
         </div>
 
