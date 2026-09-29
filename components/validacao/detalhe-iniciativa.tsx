@@ -168,9 +168,15 @@ export function DetalheIniciativa({
         todos.sort((a, b) => b.updated_at.localeCompare(a.updated_at));
 
         const textoBusca = (busca ?? "").toLowerCase().trim();
+        // Vários status podem vir marcados ao mesmo tempo, separados por vírgula.
+        const statuses = (filtroStatus ?? "")
+          .split(",")
+          .map((s) => s.trim())
+          .filter((s) => s !== "" && s !== "todos");
+
         const filtrados = todos.filter((item) => {
-          if (filtroStatus && filtroStatus !== "todos") {
-            if (item.status !== filtroStatus) return false;
+          if (statuses.length > 0) {
+            if (!statuses.includes(item.status)) return false;
           }
           if (textoBusca) {
             const alvo = `${item.indicadorNome} ${item.iniciativa}`.toLowerCase();
@@ -293,7 +299,7 @@ export function DetalheIniciativa({
   }
 
   const voltarHref = `/validacao?unidades=${unidadesSelecionadas}${
-    filtroStatus && filtroStatus !== "todos"
+    filtroStatus && filtroStatus !== "todos" && filtroStatus !== ""
       ? `&status=${filtroStatus}`
       : ""
   }${busca ? `&busca=${encodeURIComponent(busca)}` : ""}&mes=${mes}&ano=${ano}`;

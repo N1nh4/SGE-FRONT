@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSelectedLayoutSegment } from "next/navigation";
 import { BarChart3, Eye, LoaderCircle, Search } from "lucide-react";
 import {
   CORES_GRAFICO,
@@ -94,6 +94,24 @@ function statusLabel(status: StatusValidacao): string {
   }
 }
 
+function DetalhePendencia({
+  cor,
+  rotulo,
+  valor,
+}: {
+  cor: string;
+  rotulo: string;
+  valor: number;
+}) {
+  return (
+    <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+      <span className={`inline-block size-2 shrink-0 rounded-full ${cor}`} />
+      {rotulo}
+      <span className="font-semibold tabular-nums text-foreground">{valor}</span>
+    </span>
+  );
+}
+
 function statusCores(status: StatusValidacao): string {
   switch (status) {
     case "aprovado":
@@ -158,11 +176,14 @@ export function Validacao({
   ano: number;
 }) {
   const router = useRouter();
+  // Ao voltar do detalhe de uma iniciativa, o App Router reaproveita o
+  // componente em cache; isso força a lista a buscar os dados de novo.
+  const segmento = useSelectedLayoutSegment();
   const [unidades, setUnidades] = useState<Unidade[]>([]);
   const [linhas, setLinhas] = useState<IndicadorLinha[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState(false);
-  const [filtroStatus, setFiltroStatus] = useState<string>("todos");
+  const [filtrosStatus, setFiltrosStatus] = useState<string[]>([]);
   const [busca, setBusca] = useState("");
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [mostrarGrafico, setMostrarGrafico] = useState(false);
@@ -242,7 +263,7 @@ export function Validacao({
     return () => {
       ativo = false;
     };
-  }, [unidadesSelecionadas, mes, ano]);
+  }, [unidadesSelecionadas, mes, ano, segmento]);
 
   const linhasFiltradas = useMemo(() => {
     return linhas.filter((linha) => {
@@ -252,10 +273,22 @@ export function Validacao({
         linha.iniciativa.toLowerCase().includes(busca.toLowerCase());
 
       if (!matchBusca) return false;
-      if (filtroStatus === "todos") return true;
-      return linha.status === filtroStatus;
+      if (filtrosStatus.length === 0) return true;
+      return filtrosStatus.includes(linha.status);
     });
-  }, [linhas, filtroStatus, busca]);
+  }, [linhas, filtrosStatus, busca]);
+
+  // Vários status podem ficar marcados ao mesmo tempo. "Todos" limpa a seleção,
+  // porque lista vazia significa "sem filtro".
+  function alternarFiltroStatus(valor: string) {
+    if (valor === "todos") {
+      setFiltrosStatus([]);
+      return;
+    }
+    setFiltrosStatus((prev) =>
+      prev.includes(valor) ? prev.filter((s) => s !== valor) : [...prev, valor],
+    );
+  }
 
   const ITENS_POR_PAGINA = 7;
   const totalPaginas = Math.max(
@@ -270,7 +303,7 @@ export function Validacao({
 
   useEffect(() => {
     setPaginaAtual(1);
-  }, [filtroStatus, busca, unidadesSelecionadas, mes, ano]);
+  }, [filtrosStatus, busca, unidadesSelecionadas, mes, ano]);
 
   // Aqui o objeto medido é o documento de comprovação, não o indicador: uma
   // meta pode ter mais de um documento (um por etapa), então a contagem por
@@ -502,13 +535,27 @@ export function Validacao({
                 {documentos.recusado}
               </p>
             </div>
-            <div className="rounded-xl border bg-card p-4">
-              <p className="text-xs font-medium uppercase text-muted-foreground">
-                Sem atualização/comprovante
-              </p>
-              <p className="mt-1 text-2xl font-semibold text-muted-foreground">
-                {documentos.sem_atualizacao + documentos.sem_comprovante}
-              </p>
+            <div className="flex items-start justify-between gap-2 rounded-xl border bg-card p-4">
+              <div>
+                <p className="text-xs font-medium uppercase text-muted-foreground">
+                  Em pendência
+                </p>
+                <p className="mt-1 text-2xl font-semibold text-muted-foreground">
+                  {documentos.sem_atualizacao + documentos.sem_comprovante}
+                </p>
+              </div>
+              <div className="flex flex-col items-start gap-0.5">
+                <DetalhePendencia
+                  cor="bg-amber-500"
+                  rotulo="Sem atualização"
+                  valor={documentos.sem_atualizacao}
+                />
+                <DetalhePendencia
+                  cor="bg-gray-400"
+                  rotulo="Sem comprovante"
+                  valor={documentos.sem_comprovante}
+                />
+              </div>
             </div>
           </div>
 
@@ -530,19 +577,26 @@ export function Validacao({
 
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-2">
-              {FILTROS.map((f) => (
-                <button
-                  key={f.valor}
-                  onClick={() => setFiltroStatus(f.valor)}
-                  className={`cursor-pointer rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-                    filtroStatus === f.valor
-                      ? "border-azul-escuro bg-azul-escuro text-white"
-                      : "border-black/[.08] bg-white text-muted-foreground hover:bg-muted"
-                  }`}
-                >
-                  {f.label}
-                </button>
-              ))}
+              {FILTROS.map((f) => {
+                const ativo =
+                  f.valor === "todos"
+                    ? filtrosStatus.length === 0
+                    : filtrosStatus.includes(f.valor);
+                return (
+                  <button
+                    key={f.valor}
+                    aria-pressed={ativo}
+                    onClick={() => alternarFiltroStatus(f.valor)}
+                    className={`cursor-pointer rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                      ativo
+                        ? "border-azul-escuro bg-azul-escuro text-white"
+                        : "border-black/[.08] bg-white text-muted-foreground hover:bg-muted"
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                );
+              })}
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -643,7 +697,7 @@ export function Validacao({
                             size="sm"
                             onClick={() =>
                               router.push(
-                                `/validacao/${unidadeDoDetalhe}/${linha.iniciativaId}?mes=${mes}&ano=${ano}&unidades=${unidadesSelecionadas.join(",")}&status=${filtroStatus}&busca=${encodeURIComponent(busca)}`,
+                                `/validacao/${unidadeDoDetalhe}/${linha.iniciativaId}?mes=${mes}&ano=${ano}&unidades=${unidadesSelecionadas.join(",")}&status=${filtrosStatus.join(",")}&busca=${encodeURIComponent(busca)}`,
                               )
                             }
                             className="cursor-pointer border border-solid border-black/[.08] bg-white text-azul-escuro hover:bg-white/90"

@@ -9,6 +9,7 @@ export const CORES_GRAFICO = {
   azul: "#2563eb",
   vermelho: "#dc2626",
   amber: "#d97706",
+  lilas: "#7c3aed",
   cinza: "#9ca3af",
 };
 

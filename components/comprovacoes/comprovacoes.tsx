@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSelectedLayoutSegment } from "next/navigation";
 import { BarChart3, Search, Eye, MessageSquareWarning } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,12 +10,20 @@ import {
   type SerieGrafico,
 } from "@/components/graficos/grafico-desempenho";
 
+// Série do gráfico de Comprovações: uma meta por barra, com o status
+// consolidado. As chaves acompanham StatusConsolidado, não o status do
+// documento, para a soma das barras bater com o card Total de Metas.
 const SERIE_COMPROVACAO: SerieGrafico[] = [
   { chave: "aprovado", rotulo: "Aprovado", cor: CORES_GRAFICO.verde },
+  { chave: "parcial", rotulo: "Parcial", cor: CORES_GRAFICO.lilas },
   { chave: "analise", rotulo: "Em análise", cor: CORES_GRAFICO.azul },
   { chave: "recusado", rotulo: "Recusado", cor: CORES_GRAFICO.vermelho },
-  { chave: "sem_atualizacao", rotulo: "Sem atualização", cor: CORES_GRAFICO.amber },
-  { chave: "sem_comprovante", rotulo: "Sem comprovante", cor: CORES_GRAFICO.cinza },
+  {
+    chave: "sem_atualizacao",
+    rotulo: "Sem atualização",
+    cor: CORES_GRAFICO.amber,
+  },
+  { chave: "pendente", rotulo: "Pendente", cor: CORES_GRAFICO.cinza },
 ];
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
@@ -92,8 +100,10 @@ function statusCores(status: StatusConsolidado): string {
   switch (status) {
     case "aprovado":
       return "bg-green-100 text-green-700 border-green-200";
+    // Parcial é lilás, e não amarelo, para não se confundir com o âmbar de
+    // "sem atualização" na mesma tela.
     case "parcial":
-      return "bg-yellow-100 text-yellow-700 border-yellow-200";
+      return "bg-violet-100 text-violet-700 border-violet-200";
     case "recusado":
       return "bg-red-100 text-red-700 border-red-200";
     case "analise":
@@ -103,6 +113,26 @@ function statusCores(status: StatusConsolidado): string {
     case "sem_atualizacao":
       return "bg-amber-100 text-amber-700 border-amber-200";
   }
+}
+
+function DetalhePendencia({
+  cor,
+  rotulo,
+  valor,
+}: {
+  cor: string;
+  rotulo: string;
+  valor: number;
+}) {
+  return (
+    <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+      <span className={`inline-block size-2 shrink-0 rounded-full ${cor}`} />
+      {rotulo}
+      <span className="font-semibold tabular-nums text-foreground">
+        {valor}
+      </span>
+    </span>
+  );
 }
 
 function calcularStatus(
@@ -124,11 +154,28 @@ function calcularStatus(
     };
   }
 
-  const temRecusa = comprovacoes.some((c) => c.status === "recusado");
-  const temSemAtualizacao = comprovacoes.some(
+  // Só a comprovação vigente de cada etapa vale para o status (mesma regra de
+  // validacao.tsx e indicadores.tsx). Sem isso, um "recusado" antigo continuaria
+  // contando para sempre depois de o usuário registrar "sem atualização" numa
+  // versão nova.
+  const vigentePorGrupo = new Map<string, Comprovacao>();
+  for (const c of comprovacoes) {
+    const grupo =
+      c.etapa_id != null ? `etapa-${c.etapa_id}` : `mes-${c.ano}-${c.mes}`;
+    const atual = vigentePorGrupo.get(grupo);
+    if (!atual || c.versao > atual.versao) {
+      vigentePorGrupo.set(grupo, c);
+    }
+  }
+  const vigentes = Array.from(vigentePorGrupo.values());
+
+  const temRecusa = vigentes.some((c) => c.status === "recusado");
+  const temSemAtualizacao = vigentes.some(
     (c) => c.status === "sem_atualizacao",
   );
 
+  // Aprovação é terminal: se a etapa já foi aprovada em alguma versão, ela
+  // conta como concluída mesmo que depois tenha havido novo registro.
   let etapasAprovadas = 0;
   for (const etapa of indicador.etapas) {
     const comprovacaoEtapa = comprovacoes.find(
@@ -145,7 +192,7 @@ function calcularStatus(
   } else if (etapasAprovadas > 0) {
     statusConsolidado = "parcial";
   } else {
-    const temAnalise = comprovacoes.some((c) => c.status === "analise");
+    const temAnalise = vigentes.some((c) => c.status === "analise");
     if (temAnalise) {
       statusConsolidado = "analise";
     } else if (temSemAtualizacao) {
@@ -160,10 +207,14 @@ function calcularStatus(
 
 export function Comprovacoes() {
   const router = useRouter();
+  // Volta a valer depois de registrar um "sem atualização" no detalhe: ao
+  // retornar para a lista, o App Router reaproveita o componente em cache e
+  // os cards ficariam com os números da busca anterior.
+  const segmento = useSelectedLayoutSegment();
   const { usuario, unidadeId, unidades: unidadesDoUsuario } = useAuth();
   const [linhas, setLinhas] = useState<IndicadorLinha[]>([]);
   const [carregando, setCarregando] = useState(true);
-  const [filtroStatus, setFiltroStatus] = useState<string>("todos");
+  const [filtrosStatus, setFiltrosStatus] = useState<string[]>([]);
   const [busca, setBusca] = useState("");
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [recusadasAbertas, setRecusadasAbertas] =
@@ -217,9 +268,7 @@ export function Comprovacoes() {
           );
         }
 
-        resultado.sort(
-          (a, b) => dataMaisRecente(b) - dataMaisRecente(a),
-        );
+        resultado.sort((a, b) => dataMaisRecente(b) - dataMaisRecente(a));
 
         setLinhas(resultado);
       } catch {
@@ -229,7 +278,7 @@ export function Comprovacoes() {
       }
     }
     carregar();
-  }, [usuario?.papel, unidadeId]);
+  }, [usuario?.papel, unidadeId, segmento]);
 
   const linhasFiltradas = useMemo(() => {
     return linhas.filter((linha) => {
@@ -243,11 +292,23 @@ export function Comprovacoes() {
 
       if (!matchBusca) return false;
 
-      if (filtroStatus === "todos") return true;
+      if (filtrosStatus.length === 0) return true;
 
-      return linha.statusConsolidado === filtroStatus;
+      return filtrosStatus.includes(linha.statusConsolidado);
     });
-  }, [linhas, filtroStatus, busca]);
+  }, [linhas, filtrosStatus, busca]);
+
+  // Vários status podem ficar marcados ao mesmo tempo. "Todos" limpa a seleção,
+  // porque lista vazia significa "sem filtro".
+  function alternarFiltroStatus(valor: string) {
+    if (valor === "todos") {
+      setFiltrosStatus([]);
+      return;
+    }
+    setFiltrosStatus((prev) =>
+      prev.includes(valor) ? prev.filter((s) => s !== valor) : [...prev, valor],
+    );
+  }
 
   const ITENS_POR_PAGINA = 7;
   const totalPaginas = Math.max(
@@ -262,7 +323,7 @@ export function Comprovacoes() {
 
   useEffect(() => {
     setPaginaAtual(1);
-  }, [filtroStatus, busca]);
+  }, [filtrosStatus, busca]);
 
   const totalIndicadores = linhas.length;
   const aprovados = linhas.filter(
@@ -271,19 +332,21 @@ export function Comprovacoes() {
   const emAnalise = linhas.filter(
     (l) => l.statusConsolidado === "analise",
   ).length;
-  const parciais = linhas.filter(
-    (l) => l.statusConsolidado === "parcial",
-  ).length;
   const recusados = linhas.filter(
     (l) => l.statusConsolidado === "recusado",
   ).length;
-  // Mesmo agrupamento da Validação: quem não tem documento nenhum e quem
-  // registrou "sem atualização" são a mesma faixa de pendência.
-  const semAtualizacao = linhas.filter(
-    (l) =>
-      l.statusConsolidado === "pendente" ||
-      l.statusConsolidado === "sem_atualizacao",
+  // "Em pendência" agrupa os três estados que ainda não foram concluídos, e o
+  // card mostra a conta aberta para ficar claro de onde o total vem.
+  const pendentes = linhas.filter(
+    (l) => l.statusConsolidado === "pendente",
   ).length;
+  const semAtualizacao = linhas.filter(
+    (l) => l.statusConsolidado === "sem_atualizacao",
+  ).length;
+  const parciais = linhas.filter(
+    (l) => l.statusConsolidado === "parcial",
+  ).length;
+  const emPendencia = pendentes + semAtualizacao + parciais;
 
   // Gráfico restrito à unidade do usuário: nesta tela não existe seleção de
   // unidade, então o comparativo entre unidades não se aplica. Conta a versão
@@ -294,12 +357,16 @@ export function Comprovacoes() {
       linhas[0]?.responsavel ??
       "Minha unidade";
 
+    // Uma meta conta uma vez, com o status consolidado que a própria tabela
+    // mostra. Antes era uma contagem por documento, então uma meta com várias
+    // etapas aparecia várias vezes e a soma não batia com o card.
     const valores = {
       aprovado: 0,
+      parcial: 0,
       analise: 0,
       recusado: 0,
       sem_atualizacao: 0,
-      sem_comprovante: 0,
+      pendente: 0,
     };
 
     for (const linha of linhas) {
@@ -309,25 +376,7 @@ export function Comprovacoes() {
       )
         continue;
 
-      const vigentePorEtapa = new Map<string, Comprovacao>();
-      for (const c of linha.comprovacoes) {
-        const grupo = c.etapa_id != null ? `etapa-${c.etapa_id}` : "periodo";
-        const atual = vigentePorEtapa.get(grupo);
-        if (!atual || c.versao > atual.versao) vigentePorEtapa.set(grupo, c);
-      }
-      const vigentes = Array.from(vigentePorEtapa.values());
-
-      if (vigentes.length === 0) {
-        valores.sem_comprovante += 1;
-        continue;
-      }
-      for (const c of vigentes) {
-        if (c.status === "aprovado") valores.aprovado += 1;
-        else if (c.status === "analise") valores.analise += 1;
-        else if (c.status === "recusado") valores.recusado += 1;
-        else if (c.status === "sem_atualizacao") valores.sem_atualizacao += 1;
-        else valores.sem_comprovante += 1;
-      }
+      valores[linha.statusConsolidado] += 1;
     }
 
     return [{ nome: nomeUnidade, valores }];
@@ -350,11 +399,6 @@ export function Comprovacoes() {
             <p className="mt-1 text-2xl font-semibold text-blue-600">
               {emAnalise}
             </p>
-            {parciais > 0 && (
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                {parciais} parciais
-              </p>
-            )}
           </div>
           <div className="rounded-xl border bg-card p-4">
             <p className="text-xs font-medium uppercase text-muted-foreground">
@@ -366,19 +410,38 @@ export function Comprovacoes() {
           </div>
           <div className="rounded-xl border bg-card p-4">
             <p className="text-xs font-medium uppercase text-muted-foreground">
-              Recursados
+              Recusados
             </p>
             <p className="mt-1 text-2xl font-semibold text-red-600">
               {recusados}
             </p>
           </div>
-          <div className="rounded-xl border bg-card p-4">
-            <p className="text-xs font-medium uppercase text-muted-foreground">
-              Sem atualização/comprovante
-            </p>
-            <p className="mt-1 text-2xl font-semibold text-muted-foreground">
-              {semAtualizacao}
-            </p>
+          <div className="flex items-start justify-between gap-2 rounded-xl border bg-card p-4">
+            <div>
+              <p className="text-xs font-medium uppercase text-muted-foreground">
+                Em pendência
+              </p>
+              <p className="mt-1 text-2xl font-semibold text-muted-foreground">
+                {emPendencia}
+              </p>
+            </div>
+            <div className="flex flex-col items-start gap-0.5">
+              <DetalhePendencia
+                cor="bg-amber-500"
+                rotulo="Sem atualização"
+                valor={semAtualizacao}
+              />
+              <DetalhePendencia
+                cor="bg-gray-400"
+                rotulo="Pendente"
+                valor={pendentes}
+              />
+              <DetalhePendencia
+                cor="bg-violet-500"
+                rotulo="Parcial"
+                valor={parciais}
+              />
+            </div>
           </div>
         </div>
 
@@ -394,19 +457,26 @@ export function Comprovacoes() {
 
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap gap-2">
-            {FILTROS.map((f) => (
-              <button
-                key={f.valor}
-                onClick={() => setFiltroStatus(f.valor)}
-                className={`cursor-pointer rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-                  filtroStatus === f.valor
-                    ? "border-azul-escuro bg-azul-escuro text-white"
-                    : "border-black/[.08] bg-white text-muted-foreground hover:bg-muted"
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
+            {FILTROS.map((f) => {
+              const ativo =
+                f.valor === "todos"
+                  ? filtrosStatus.length === 0
+                  : filtrosStatus.includes(f.valor);
+              return (
+                <button
+                  key={f.valor}
+                  aria-pressed={ativo}
+                  onClick={() => alternarFiltroStatus(f.valor)}
+                  className={`cursor-pointer rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                    ativo
+                      ? "border-azul-escuro bg-azul-escuro text-white"
+                      : "border-black/[.08] bg-white text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  {f.label}
+                </button>
+              );
+            })}
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -437,9 +507,11 @@ export function Comprovacoes() {
                 <th className="w-[10%] px-5 py-3 font-medium">Código</th>
                 <th className="w-[25%] px-5 py-3 font-medium">Meta</th>
                 <th className="w-[17%] px-5 py-3 font-medium">Responsável</th>
-                <th className="w-[12%] px-5 py-3 font-medium">Data</th>
+                <th className="w-[12%] px-5 py-3 font-medium">Data de Envio</th>
                 <th className="w-[18%] px-5 py-3 font-medium">Status</th>
-                <th className="w-[18%] px-5 py-3 text-right font-medium">Ações</th>
+                <th className="w-[18%] px-5 py-3 text-right font-medium">
+                  Ações
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -568,10 +640,7 @@ export function Comprovacoes() {
                   (e) => e.id === c.etapa_id,
                 );
                 return (
-                  <div
-                    key={c.id}
-                    className="rounded-lg border bg-muted/30 p-4"
-                  >
+                  <div key={c.id} className="rounded-lg border bg-muted/30 p-4">
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       {etapa?.nome ?? "Comprovação"}
                     </p>
