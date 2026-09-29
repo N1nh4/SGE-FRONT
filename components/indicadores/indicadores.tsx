@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Area,
@@ -19,9 +19,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import {
   CalendarClock,
-  Check,
   CheckCircle2,
-  ChevronDown,
   ClipboardList,
   LoaderCircle,
   MinusCircle,
@@ -40,6 +38,7 @@ import {
   GraficoDesempenho,
   type SerieGrafico,
 } from "@/components/graficos/grafico-desempenho";
+import { MultiselectUnidades } from "@/components/unidade/multiselect-unidades";
 
 const MESES = [
   "Janeiro",
@@ -233,9 +232,6 @@ export function Indicadores() {
   // escopo de escrita continua sendo aplicado pelo backend via X-Unidade-Id,
   // que só restringe o papel "default" (ver get_escopo_unidade em deps.py).
   const [filtroUnidades, setFiltroUnidades] = useState<number[]>([]);
-  const [dropdownUnidadesAberto, setDropdownUnidadesAberto] = useState(false);
-  const [buscaUnidade, setBuscaUnidade] = useState("");
-  const refDropdownUnidades = useRef<HTMLDivElement>(null);
   const [filtroObjetivo, setFiltroObjetivo] = useState<number | "todos">(
     "todos",
   );
@@ -246,35 +242,6 @@ export function Indicadores() {
 
   const ITENS_POR_PAGINA = 8;
 
-  useEffect(() => {
-    if (!dropdownUnidadesAberto) return;
-    function handleClickFora(event: MouseEvent) {
-      if (
-        refDropdownUnidades.current &&
-        !refDropdownUnidades.current.contains(event.target as Node)
-      ) {
-        setDropdownUnidadesAberto(false);
-        setBuscaUnidade("");
-      }
-    }
-    document.addEventListener("mousedown", handleClickFora);
-    return () => document.removeEventListener("mousedown", handleClickFora);
-  }, [dropdownUnidadesAberto]);
-
-  const alternarUnidade = (id: number) => {
-    setFiltroUnidades((prev) =>
-      prev.includes(id) ? prev.filter((u) => u !== id) : [...prev, id],
-    );
-  };
-
-  const unidadesFiltradas = useMemo(() => {
-    const termo = buscaUnidade.trim().toLowerCase();
-    if (!termo) return unidades;
-    return unidades.filter((u) => u.nome.toLowerCase().includes(termo));
-  }, [unidades, buscaUnidade]);
-
-  const todasUnidadesSelecionadas =
-    unidades.length > 0 && filtroUnidades.length >= unidades.length;
 
   useEffect(() => {
     let ativo = true;
@@ -570,93 +537,11 @@ export function Indicadores() {
           <span className="text-sm font-medium text-muted-foreground">
             Unidades
           </span>
-          <div ref={refDropdownUnidades} className="relative w-64">
-            <button
-              type="button"
-              onClick={() => setDropdownUnidadesAberto((aberto) => !aberto)}
-              className="flex h-8 w-full items-center justify-between gap-2 rounded-lg border border-input bg-transparent px-2.5 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
-            >
-              <span className="truncate">
-                {filtroUnidades.length === 0
-                  ? "Todas as unidades"
-                  : filtroUnidades.length === 1
-                    ? (unidades.find((u) => u.id === filtroUnidades[0])?.nome ??
-                      "1 unidade")
-                    : `${filtroUnidades.length} unidades`}
-              </span>
-              <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
-            </button>
-
-            {dropdownUnidadesAberto && (
-              <div className="absolute top-full z-50 mt-1 w-full overflow-hidden rounded-lg border bg-popover shadow-md">
-                <div className="border-b px-2.5 py-1.5">
-                  <input
-                    type="text"
-                    value={buscaUnidade}
-                    onChange={(e) => setBuscaUnidade(e.target.value)}
-                    placeholder="Buscar unidade..."
-                    className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-                    autoFocus
-                  />
-                </div>
-                <div className="max-h-52 overflow-auto">
-                  {unidadesFiltradas.length === 0 && (
-                    <p className="px-2.5 py-2 text-sm text-muted-foreground">
-                      Nenhuma unidade encontrada.
-                    </p>
-                  )}
-                  {unidadesFiltradas.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setFiltroUnidades(
-                          todasUnidadesSelecionadas
-                            ? []
-                            : unidades.map((u) => u.id),
-                        )
-                      }
-                      className="flex w-full cursor-pointer items-center gap-2 border-b px-2.5 py-1.5 text-left text-sm font-medium hover:bg-accent"
-                    >
-                      <span
-                        className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
-                          todasUnidadesSelecionadas
-                            ? "border-bege bg-bege text-white"
-                            : "border-input"
-                        }`}
-                      >
-                        {todasUnidadesSelecionadas && (
-                          <Check className="h-3 w-3" />
-                        )}
-                      </span>
-                      Selecionar todas
-                    </button>
-                  )}
-                  {unidadesFiltradas.map((u) => {
-                    const marcada = filtroUnidades.includes(u.id);
-                    return (
-                      <button
-                        key={u.id}
-                        type="button"
-                        onClick={() => alternarUnidade(u.id)}
-                        className="flex w-full cursor-pointer items-center gap-2 px-2.5 py-1.5 text-left text-sm hover:bg-accent"
-                      >
-                        <span
-                          className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
-                            marcada
-                              ? "border-bege bg-bege text-white"
-                              : "border-input"
-                          }`}
-                        >
-                          {marcada && <Check className="h-3 w-3" />}
-                        </span>
-                        <span className="truncate">{u.nome}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
+          <MultiselectUnidades
+            unidades={unidades}
+            selecionadas={filtroUnidades}
+            onChange={setFiltroUnidades}
+          />
         </div>
 
         <div className="flex flex-col gap-1.5">

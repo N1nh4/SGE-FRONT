@@ -8,13 +8,22 @@ import {
   GraficoDesempenho,
   type SerieGrafico,
 } from "@/components/graficos/grafico-desempenho";
+import { MultiselectUnidades } from "@/components/unidade/multiselect-unidades";
 
 const SERIE_COMPROVACAO: SerieGrafico[] = [
   { chave: "aprovado", rotulo: "Aprovado", cor: CORES_GRAFICO.verde },
   { chave: "analise", rotulo: "Em análise", cor: CORES_GRAFICO.azul },
   { chave: "recusado", rotulo: "Recusado", cor: CORES_GRAFICO.vermelho },
-  { chave: "sem_atualizacao", rotulo: "Sem atualização", cor: CORES_GRAFICO.amber },
-  { chave: "sem_comprovante", rotulo: "Sem comprovante", cor: CORES_GRAFICO.cinza },
+  {
+    chave: "sem_atualizacao",
+    rotulo: "Sem atualização",
+    cor: CORES_GRAFICO.amber,
+  },
+  {
+    chave: "sem_comprovante",
+    rotulo: "Sem comprovante",
+    cor: CORES_GRAFICO.cinza,
+  },
 ];
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -140,11 +149,11 @@ function formatarPrazo(prazo: string | null): string {
 }
 
 export function Validacao({
-  unidadeId,
+  unidadesSelecionadas,
   mes,
   ano,
 }: {
-  unidadeId: number | "todas" | null;
+  unidadesSelecionadas: number[];
   mes: number;
   ano: number;
 }) {
@@ -160,21 +169,11 @@ export function Validacao({
 
   useEffect(() => {
     fetchUnidades()
-      .then((lista) => {
-        setUnidades(lista);
-        const valida =
-          unidadeId === "todas" ||
-          (typeof unidadeId === "number" &&
-            lista.some((u) => u.id === unidadeId));
-        if (!valida && lista.length > 0) {
-          router.replace(`/validacao?unidade=${lista[0].id}&mes=${mes}&ano=${ano}`);
-        }
-      })
+      .then((lista) => setUnidades(lista))
       .catch(() => {});
-  }, [router, unidadeId, mes, ano]);
+  }, []);
 
   useEffect(() => {
-    if (unidadeId === null) return;
     let ativo = true;
 
     async function carregar() {
@@ -191,9 +190,11 @@ export function Validacao({
         const promessas = lista.flatMap((p) =>
           p.indicadores
             .filter((ind) =>
-              unidadeId === "todas"
+              unidadesSelecionadas.length === 0
                 ? ind.unidades.length > 0
-                : ind.unidades.some((u) => u.id === unidadeId),
+                : ind.unidades.some((u) =>
+                    unidadesSelecionadas.includes(u.id),
+                  ),
             )
             .map(async (indicador) => {
               const comprovacoes = await fetchComprovacoes(indicador.id);
@@ -241,7 +242,7 @@ export function Validacao({
     return () => {
       ativo = false;
     };
-  }, [unidadeId, mes, ano]);
+  }, [unidadesSelecionadas, mes, ano]);
 
   const linhasFiltradas = useMemo(() => {
     return linhas.filter((linha) => {
@@ -269,7 +270,7 @@ export function Validacao({
 
   useEffect(() => {
     setPaginaAtual(1);
-  }, [filtroStatus, busca, unidadeId, mes, ano]);
+  }, [filtroStatus, busca, unidadesSelecionadas, mes, ano]);
 
   // Aqui o objeto medido é o documento de comprovação, não o indicador: uma
   // meta pode ter mais de um documento (um por etapa), então a contagem por
@@ -315,7 +316,10 @@ export function Validacao({
   const totalIndicadores = linhas.length;
 
   const dadosPorUnidade = useMemo(() => {
-    const porUnidade = new Map<number, { nome: string; valores: Record<string, number> }>();
+    const porUnidade = new Map<
+      number,
+      { nome: string; valores: Record<string, number> }
+    >();
 
     for (const linha of linhas) {
       const vigentePorEtapa = new Map<string, Comprovacao>();
@@ -347,7 +351,8 @@ export function Validacao({
             if (c.status === "aprovado") acc.valores.aprovado += 1;
             else if (c.status === "analise") acc.valores.analise += 1;
             else if (c.status === "recusado") acc.valores.recusado += 1;
-            else if (c.status === "sem_atualizacao") acc.valores.sem_atualizacao += 1;
+            else if (c.status === "sem_atualizacao")
+              acc.valores.sem_atualizacao += 1;
             else acc.valores.sem_comprovante += 1;
           }
         }
@@ -360,50 +365,48 @@ export function Validacao({
     );
   }, [linhas]);
 
-  function unidadeParam(valor: number | "todas" | null): string {
-    if (valor === null) return "";
-    return valor === "todas" ? "todas" : String(valor);
-  }
+  // Lista vazia = todas as unidades. Para admin/master o padrão é todas, e não
+  // a unidade do usuário; para o papel default só existe a própria unidade na
+  // lista, então o resultado é o mesmo sem tratamento especial.
+  const query = (sel: number[], mes_: number, ano_: number) => {
+    const partes = new URLSearchParams();
+    if (sel.length > 0) partes.set("unidades", sel.join(","));
+    partes.set("mes", String(mes_));
+    partes.set("ano", String(ano_));
+    return `/validacao?${partes.toString()}`;
+  };
 
-  function mudarUnidade(novoValor: string) {
-    router.push(`/validacao?unidade=${novoValor}&mes=${mes}&ano=${ano}`);
+  // A rota de detalhe aceita uma única unidade ou "todas". Com várias marcadas
+  // não dá para representar o recorte inteiro, então o detalhe abre sem filtro.
+  const unidadeDoDetalhe =
+    unidadesSelecionadas.length === 1
+      ? String(unidadesSelecionadas[0])
+      : "todas";
+
+  function mudarUnidades(novas: number[]) {
+    router.push(query(novas, mes, ano));
   }
 
   function mudarMes(novoMes: number) {
-    router.push(
-      `/validacao?unidade=${unidadeParam(unidadeId)}&mes=${novoMes}&ano=${ano}`,
-    );
+    router.push(query(unidadesSelecionadas, novoMes, ano));
   }
 
   function mudarAno(novoAno: number) {
-    router.push(
-      `/validacao?unidade=${unidadeParam(unidadeId)}&mes=${mes}&ano=${novoAno}`,
-    );
+    router.push(query(unidadesSelecionadas, mes, novoAno));
   }
 
   return (
     <main className="flex-1 bg-cinza-claro p-8">
       <section className="mb-6 flex flex-wrap items-end gap-4 rounded-xl border bg-card p-5">
-        <div className="flex items-center gap-1.5">
-          <label
-            htmlFor="unidade"
-            className="text-sm leading-none font-medium text-muted-foreground"
-          >
-            Unidade
-          </label>
-          <select
-            id="unidade"
-            value={unidadeId === null ? "" : unidadeId === "todas" ? "todas" : unidadeId}
-            onChange={(event) => mudarUnidade(event.target.value)}
-            className="h-8 w-auto min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
-          >
-            <option value="todas">Todas as unidades</option>
-            {unidades.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.nome}
-              </option>
-            ))}
-          </select>
+        <div className="flex flex-col gap-1.5">
+          <span className="text-sm font-medium text-muted-foreground">
+            Unidades
+          </span>
+          <MultiselectUnidades
+            unidades={unidades}
+            selecionadas={unidadesSelecionadas}
+            onChange={mudarUnidades}
+          />
         </div>
 
         <div className="flex items-center gap-1.5">
@@ -467,11 +470,12 @@ export function Validacao({
           <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-5">
             <div className="rounded-xl border bg-card p-4">
               <p className="text-xs font-medium uppercase text-muted-foreground">
-                Documentos
+                Envidados
               </p>
               <p className="mt-1 text-2xl font-semibold">{documentos.total}</p>
               <p className="mt-1 text-[11px] text-muted-foreground">
-                em {totalIndicadores} indicador{totalIndicadores === 1 ? "" : "es"}
+                em {totalIndicadores} indicador
+                {totalIndicadores === 1 ? "" : "es"}
               </p>
             </div>
             <div className="rounded-xl border bg-card p-4">
@@ -510,9 +514,7 @@ export function Validacao({
 
           {mostrarGrafico && (
             <div className="mb-6 rounded-xl border bg-card p-5">
-              <p className="mb-4 text-sm font-medium">
-                Documentos por unidade
-              </p>
+              <p className="mb-4 text-sm font-medium">Documentos por unidade</p>
               {dadosPorUnidade.length === 0 ? (
                 <p className="py-10 text-center text-sm text-muted-foreground">
                   Sem documentos no período selecionado.
@@ -640,7 +642,9 @@ export function Validacao({
                             type="button"
                             size="sm"
                             onClick={() =>
-                              (window.location.href = `/validacao/${unidadeParam(unidadeId)}/${linha.iniciativaId}?mes=${mes}&ano=${ano}&status=${filtroStatus}&busca=${encodeURIComponent(busca)}`)
+                              router.push(
+                                `/validacao/${unidadeDoDetalhe}/${linha.iniciativaId}?mes=${mes}&ano=${ano}&unidades=${unidadesSelecionadas.join(",")}&status=${filtroStatus}&busca=${encodeURIComponent(busca)}`,
+                              )
                             }
                             className="cursor-pointer border border-solid border-black/[.08] bg-white text-azul-escuro hover:bg-white/90"
                           >
@@ -659,9 +663,9 @@ export function Validacao({
                       className="px-5 py-10 text-center text-sm text-muted-foreground"
                     >
                       {linhas.length === 0
-                        ? unidadeId === "todas"
+                        ? unidadesSelecionadas.length === 0
                           ? `Nenhum indicador encontrado em ${MESES[mes - 1]} de ${ano}.`
-                          : `Nenhum indicador encontrado para esta unidade em ${MESES[mes - 1]} de ${ano}.`
+                          : `Nenhum indicador encontrado para as unidades selecionadas em ${MESES[mes - 1]} de ${ano}.`
                         : "Nenhum resultado para o filtro aplicado."}
                     </td>
                   </tr>

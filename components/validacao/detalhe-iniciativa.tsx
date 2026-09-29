@@ -85,6 +85,7 @@ export function DetalheIniciativa({
   planejamentoId,
   mes,
   ano,
+  unidadesSelecionadas,
   filtroStatus,
   busca,
 }: {
@@ -92,6 +93,7 @@ export function DetalheIniciativa({
   planejamentoId: number;
   mes: number;
   ano: number;
+  unidadesSelecionadas?: string;
   filtroStatus?: string;
   busca?: string;
 }) {
@@ -290,11 +292,11 @@ export function DetalheIniciativa({
     }
   }
 
-  const voltarHref = `/validacao?unidade=${unidadeId}&mes=${mes}&ano=${ano}${
-      filtroStatus && filtroStatus !== "todos"
-        ? `&status=${filtroStatus}`
-        : ""
-    }${busca ? `&busca=${encodeURIComponent(busca)}` : ""}`;
+  const voltarHref = `/validacao?unidades=${unidadesSelecionadas}${
+    filtroStatus && filtroStatus !== "todos"
+      ? `&status=${filtroStatus}`
+      : ""
+  }${busca ? `&busca=${encodeURIComponent(busca)}` : ""}&mes=${mes}&ano=${ano}`;
 
   return (
     <>
