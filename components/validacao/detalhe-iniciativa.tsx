@@ -31,6 +31,7 @@ import {
   fetchComprovacoes,
   fetchPlanejamento,
   fetchUnidades,
+  mensagemErro,
   type StatusComprovacao,
   type Unidade,
 } from "@/lib/api";
@@ -276,8 +277,8 @@ export function DetalheIniciativa({
       atualizarStatus(atualizada.id, atualizada.status);
       toast.success("Comprovação reprovada.");
       irProximo();
-    } catch {
-      toast.error("Erro ao reprovar a comprovação.");
+    } catch (erro) {
+      toast.error(mensagemErro(erro, "Erro ao reprovar a comprovação."));
     } finally {
       setSalvando(false);
       setReprovando(false);
@@ -293,8 +294,8 @@ export function DetalheIniciativa({
       atualizarStatus(atualizada.id, atualizada.status);
       toast.success("Comprovação aprovada.");
       irProximo();
-    } catch {
-      toast.error("Erro ao aprovar a comprovação.");
+    } catch (erro) {
+      toast.error(mensagemErro(erro, "Erro ao aprovar a comprovação."));
     }
   }
 
@@ -356,6 +357,7 @@ export function DetalheIniciativa({
                   variant="outline"
                   size="sm"
                   render={<Link href={voltarHref} />}
+                  nativeButton={false}
                   className="cursor-pointer"
                 >
                   Sair da revisão

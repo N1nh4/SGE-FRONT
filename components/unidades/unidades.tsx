@@ -29,6 +29,7 @@ import {
   deleteUnidade,
   fetchColaboradores,
   fetchUnidades,
+  mensagemErro,
   updateUnidade,
   type Unidade,
 } from "@/lib/api";
@@ -59,7 +60,7 @@ export function Unidades() {
   const [nome, setNome] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [paginaAtual, setPaginaAtual] = useState(1);
-  const ITENS_POR_PAGINA = 7;
+  const ITENS_POR_PAGINA = 18;
 
   useEffect(() => {
     let ativo = true;
@@ -118,9 +119,12 @@ export function Unidades() {
       setNome("");
       setEditando(null);
       setOpen(false);
-    } catch {
+    } catch (erro) {
       toast.error(
-        editando ? "Erro ao atualizar a unidade." : "Erro ao criar a unidade.",
+        mensagemErro(
+          erro,
+          editando ? "Erro ao atualizar a unidade." : "Erro ao criar a unidade.",
+        ),
       );
     } finally {
       setSalvando(false);
@@ -139,8 +143,8 @@ export function Unidades() {
         ),
       );
       toast.success("Unidade excluída com sucesso.");
-    } catch {
-      toast.error("Erro ao excluir a unidade.");
+    } catch (erro) {
+      toast.error(mensagemErro(erro, "Erro ao excluir a unidade."));
     }
     setExcluindo(null);
   }
@@ -198,6 +202,7 @@ export function Unidades() {
                     type="button"
                     size="icon"
                     render={<Link href={`/unidades/${unidade.id}`} />}
+                    nativeButton={false}
                     className="border border-solid border-black/[.08] rounded-mds bg-white hover:bg-white/90 text-azul-escuro cursor-pointer"
                     aria-label="Visualizar unidade"
                   >

@@ -41,6 +41,7 @@ import {
   enviarProposta,
   fetchObjetivos,
   fetchUnidades,
+  mensagemErro,
   type NovaProposta,
   type NovoPropostaIndicador,
   type Objetivo,
@@ -221,8 +222,8 @@ export function PropostaFormDialog({
       setDropdownAberto(null);
       onOpenChange(false);
       onSalvo();
-    } catch {
-      toast.error("Erro ao salvar a proposta.");
+    } catch (erro) {
+      toast.error(mensagemErro(erro, "Erro ao salvar a proposta."));
     }
   }
 
@@ -247,8 +248,8 @@ export function PropostaFormDialog({
       snapshotRef.current = null;
       onOpenChange(false);
       onSalvo();
-    } catch {
-      toast.error("Erro ao salvar e enviar a proposta.");
+    } catch (erro) {
+      toast.error(mensagemErro(erro, "Erro ao salvar e enviar a proposta."));
     }
   }
 
@@ -267,8 +268,8 @@ export function PropostaFormDialog({
       setSalvarEConverterAberto(false);
       snapshotRef.current = null;
       onOpenChange(false);
-    } catch {
-      toast.error("Erro ao salvar e converter a proposta.");
+    } catch (erro) {
+      toast.error(mensagemErro(erro, "Erro ao salvar e converter a proposta."));
     }
   }
 
@@ -441,6 +442,7 @@ export function PropostaFormDialog({
                 value={nome}
                 onChange={(event) => setNome(event.target.value)}
                 placeholder="Nome da iniciativa (opcional)"
+                maxLength={2000}
                 className="focus-visible:ring-0 focus-visible:border-input"
               />
             </div>
@@ -486,6 +488,7 @@ export function PropostaFormDialog({
                             atualizarIndicador(index, "nome", event.target.value)
                           }
                           placeholder="Ex.: NPS (opcional)"
+                          maxLength={2000}
                           className="focus-visible:ring-0 focus-visible:border-input bg-white"
                         />
                       </div>
@@ -499,6 +502,7 @@ export function PropostaFormDialog({
                             atualizarIndicador(index, "meta", event.target.value)
                           }
                           placeholder="Ex.: acima de 80 (opcional)"
+                          maxLength={2000}
                           className="focus-visible:ring-0 focus-visible:border-input bg-white"
                         />
                       </div>
@@ -516,6 +520,7 @@ export function PropostaFormDialog({
                                 atualizarIndicador(index, "rotuloX", event.target.value)
                               }
                               placeholder="Ex.: Etapas concluídas"
+                              maxLength={2000}
                               className="focus-visible:ring-0 focus-visible:border-input"
                             />
                           </div>
@@ -533,6 +538,7 @@ export function PropostaFormDialog({
                                 atualizarIndicador(index, "rotuloY", event.target.value)
                               }
                               placeholder="Ex.: Etapas previstas"
+                              maxLength={2000}
                               className="focus-visible:ring-0 focus-visible:border-input"
                             />
                           </div>

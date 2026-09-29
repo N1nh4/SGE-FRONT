@@ -22,6 +22,7 @@ import {
   fetchPlanejamentoById,
   uploadComprovacao,
   abrirArquivoComprovacao,
+  mensagemErro,
   type Comprovacao,
   type Planejamento,
   type StatusComprovacao,
@@ -136,8 +137,8 @@ export function PaginaComprovacoes({
       setArquivo(null);
       setEtapaSelecionada(null);
       carregarComprovacoes();
-    } catch {
-      toast.error("Erro ao enviar a comprovação.");
+    } catch (erro) {
+      toast.error(mensagemErro(erro, "Erro ao enviar a comprovação."));
     } finally {
       setEnviando(false);
     }
@@ -148,8 +149,8 @@ export function PaginaComprovacoes({
       await deleteComprovacao(item.id);
       toast.success("Comprovação excluída.");
       carregarComprovacoes();
-    } catch {
-      toast.error("Erro ao excluir a comprovação.");
+    } catch (erro) {
+      toast.error(mensagemErro(erro, "Erro ao excluir a comprovação."));
     }
   }
 
@@ -162,8 +163,8 @@ export function PaginaComprovacoes({
       toast.success("Sem atualização registrada para esta etapa.");
       setConfirmandoSemAtualizacao(null);
       carregarComprovacoes();
-    } catch {
-      toast.error("Erro ao registrar sem atualização.");
+    } catch (erro) {
+      toast.error(mensagemErro(erro, "Erro ao registrar sem atualização."));
     } finally {
       setEnviando(false);
     }

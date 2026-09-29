@@ -22,6 +22,7 @@ import {
   createPerfil,
   updatePerfil,
   deletePerfil,
+  mensagemErro,
   updatePerfilPaginas,
 } from "@/lib/api";
 
@@ -121,8 +122,8 @@ export function Configuracoes() {
       setPerfilPermissoes((prev) => ({ ...prev, [perfil.id]: {} }));
       setNovoNome("");
       toast.success("Perfil criado com sucesso!");
-    } catch {
-      toast.error("Erro ao criar perfil");
+    } catch (erro) {
+      toast.error(mensagemErro(erro, "Erro ao criar perfil"));
     }
   };
 
@@ -141,8 +142,8 @@ export function Configuracoes() {
       setEditandoId(null);
       setEditandoNome("");
       toast.success("Perfil atualizado!");
-    } catch {
-      toast.error("Erro ao atualizar perfil");
+    } catch (erro) {
+      toast.error(mensagemErro(erro, "Erro ao atualizar perfil"));
     }
   };
 
@@ -157,8 +158,8 @@ export function Configuracoes() {
       });
       setExcluindoId(null);
       toast.success("Perfil excluído!");
-    } catch {
-      toast.error("Erro ao excluir perfil");
+    } catch (erro) {
+      toast.error(mensagemErro(erro, "Erro ao excluir perfil"));
     }
   };
 
@@ -177,8 +178,8 @@ export function Configuracoes() {
         await updatePerfilPaginas(Number(perfilId), itens);
       }
       toast.success("Perfis atualizados com sucesso!");
-    } catch {
-      toast.error("Erro ao salvar perfis");
+    } catch (erro) {
+      toast.error(mensagemErro(erro, "Erro ao salvar perfis"));
     } finally {
       setSalvando(false);
     }

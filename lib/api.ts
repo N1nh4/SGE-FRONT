@@ -30,6 +30,35 @@ function authHeaders(): Record<string, string> {
   }
 }
 
+// O FastAPI responde 422 com detail como lista de erros de validação
+// (campo + motivo). Sem formatar, o new Error recebia um array e o toast
+// mostrava algo inútil.
+function formatarErroApi(body: unknown, status: number): string {
+  const detalhe = (body as { detail?: unknown } | null)?.detail;
+
+  if (typeof detalhe === "string") return detalhe;
+
+  if (Array.isArray(detalhe)) {
+    const linhas = detalhe
+      .map((item) => {
+        const erro = item as { loc?: (string | number)[]; msg?: string };
+        const campo = (erro.loc ?? [])
+          .filter((parte) => parte !== "body")
+          .join(".");
+        const motivo = erro.msg ?? "valor inválido";
+        return campo ? `${campo}: ${motivo}` : motivo;
+      })
+      .filter(Boolean);
+    if (linhas.length === 0) return `Erro na requisição (${status})`;
+    const [primeiras, ...resto] = linhas;
+    return resto.length > 0
+      ? `${primeiras} (+${resto.length} outro${resto.length > 1 ? "s" : ""})`
+      : primeiras;
+  }
+
+  return `Erro na requisição (${status})`;
+}
+
 async function apiFetch<T>(
   path: string,
   init?: RequestInit,
@@ -43,10 +72,17 @@ async function apiFetch<T>(
   });
   if (!res.ok) {
     const body = await res.json().catch(() => null);
-    throw new Error(body?.detail ?? `Erro na requisição (${res.status})`);
+    throw new Error(formatarErroApi(body, res.status));
   }
   if (res.status === 204) return undefined;
   return res.json() as Promise<T>;
+}
+
+// Os handlers pegam o erro com catch { ... } e mostravam sempre um texto
+// fixo, escondendo o motivo real que a API devolveu.
+export function mensagemErro(erro: unknown, alternativa: string): string {
+  if (erro instanceof Error && erro.message) return erro.message;
+  return alternativa;
 }
 
 export type Objetivo = {

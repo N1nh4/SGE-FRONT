@@ -32,6 +32,7 @@ import {
   createObjetivo,
   deleteObjetivo,
   fetchObjetivos,
+  mensagemErro,
   updateObjetivo,
   type Objetivo,
 } from "@/lib/api";
@@ -92,16 +93,16 @@ export function Objetivos() {
           prev.map((o) => (o.id === atualizado.id ? atualizado : o)),
         );
         toast.success("Objetivo atualizado com sucesso.");
-      } catch {
-        toast.error("Erro ao atualizar o objetivo.");
+      } catch (erro) {
+        toast.error(mensagemErro(erro, "Erro ao atualizar o objetivo."));
       }
     } else {
       try {
         const criado = await createObjetivo(dados);
         setObjetivos((prev) => [...prev, criado]);
         toast.success("Objetivo criado com sucesso.");
-      } catch {
-        toast.error("Erro ao criar o objetivo.");
+      } catch (erro) {
+        toast.error(mensagemErro(erro, "Erro ao criar o objetivo."));
       }
     }
 
@@ -119,8 +120,8 @@ export function Objetivos() {
     try {
       await deleteObjetivo(id);
       toast.success("Objetivo excluído com sucesso.");
-    } catch {
-      toast.error("Erro ao excluir o objetivo.");
+    } catch (erro) {
+      toast.error(mensagemErro(erro, "Erro ao excluir o objetivo."));
     }
     setObjetivos((prev) => prev.filter((o) => o.id !== id));
     setPaginaAtual((prev) =>
@@ -239,6 +240,7 @@ export function Objetivos() {
                 value={codigo}
                 onChange={(event) => setCodigo(event.target.value)}
                 placeholder="OE1"
+                maxLength={20}
                 className="focus-visible:ring-0 focus-visible:border-input"
                 required
               />
@@ -250,6 +252,7 @@ export function Objetivos() {
                 value={nome}
                 onChange={(event) => setNome(event.target.value)}
                 placeholder="Nome do objetivo"
+                maxLength={2000}
                 className="focus-visible:ring-0 focus-visible:border-input"
                 required
               />
@@ -261,6 +264,7 @@ export function Objetivos() {
                 value={ppa}
                 onChange={(event) => setPpa(event.target.value)}
                 placeholder="Vínculação ao PPA"
+                maxLength={1000}
                 className="focus-visible:ring-0 focus-visible:border-input"
                 required
               />
@@ -272,6 +276,7 @@ export function Objetivos() {
                 value={loa}
                 onChange={(event) => setLoa(event.target.value)}
                 placeholder="LOA"
+                maxLength={1000}
                 className="focus-visible:ring-0 focus-visible:border-input"
                 required
               />

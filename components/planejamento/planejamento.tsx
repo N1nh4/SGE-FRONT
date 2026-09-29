@@ -47,6 +47,7 @@ import {
   fetchPropostasPendentes,
   fetchUnidades,
   converterProposta,
+  mensagemErro,
   updatePlanejamento,
   type Objetivo,
   type Planejamento,
@@ -237,8 +238,8 @@ export function Planejamento() {
       toast.success("Proposta enviada aos gestores.");
       refreshNotificacoes().catch(() => {});
       carregarMinhasPropostas();
-    } catch {
-      toast.error("Erro ao enviar a proposta.");
+    } catch (erro) {
+      toast.error(mensagemErro(erro, "Erro ao enviar a proposta."));
     }
   }
 
@@ -250,8 +251,8 @@ export function Planejamento() {
       );
       carregarRecebidas();
       carregarPlanejamentos();
-    } catch {
-      toast.error("Erro ao converter a proposta.");
+    } catch (erro) {
+      toast.error(mensagemErro(erro, "Erro ao converter a proposta."));
     }
   }
 
@@ -382,6 +383,42 @@ export function Planejamento() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    // Os campos do passo 1 (objetivo e iniciativa) ficam fora da <form>, então
+    // o "required" nativo não os bloqueia. Sem esta checagem a API devolvia 422
+    // e o motivo só aparecia no console.
+    if (!objetivoId) {
+      toast.error("Selecione o objetivo estratégico.");
+      return;
+    }
+    if (!nome.trim()) {
+      toast.error("Informe o nome da iniciativa.");
+      return;
+    }
+    if (indicadores.length === 0) {
+      toast.error("Adicione pelo menos um indicador.");
+      return;
+    }
+
+    for (const [i, indicador] of indicadores.entries()) {
+      const obrigatorios: [string, string][] = [
+        ["nome", indicador.nome],
+        ["meta", indicador.meta],
+        ["numerador (X)", indicador.rotuloX],
+        ["denominador (Y)", indicador.rotuloY],
+        ["orientação", indicador.orientacao],
+      ];
+      const faltando = obrigatorios
+        .filter(([, valor]) => !valor.trim())
+        .map(([campo]) => campo);
+      if (faltando.length > 0) {
+        toast.error(
+          `Indicador ${i + 1}: preencha ${faltando.join(", ")}.`,
+        );
+        setEtapaForm(2);
+        return;
+      }
+    }
+
     const dados = {
       objetivo_id: Number(objetivoId),
       nome,
@@ -410,11 +447,14 @@ export function Planejamento() {
         toast.success("Planejamento criado com sucesso.");
       }
       refreshNotificacoes().catch(() => {});
-    } catch {
+    } catch (erro) {
       toast.error(
-        editando
-          ? "Erro ao atualizar o planejamento."
-          : "Erro ao criar o planejamento.",
+        mensagemErro(
+          erro,
+          editando
+            ? "Erro ao atualizar o planejamento."
+            : "Erro ao criar o planejamento.",
+        ),
       );
     }
 
@@ -435,8 +475,8 @@ export function Planejamento() {
         ),
       );
       toast.success("Planejamento excluído com sucesso.");
-    } catch {
-      toast.error("Erro ao excluir o planejamento.");
+    } catch (erro) {
+      toast.error(mensagemErro(erro, "Erro ao excluir o planejamento."));
     }
     setExcluindo(null);
   }
@@ -755,6 +795,7 @@ export function Planejamento() {
                   value={nome}
                   onChange={(event) => setNome(event.target.value)}
                   placeholder="Nome da iniciativa"
+                  maxLength={2000}
                   className="focus-visible:ring-0 focus-visible:border-input"
                   required
                 />
@@ -805,6 +846,7 @@ export function Planejamento() {
                               )
                             }
                             placeholder="Ex.: NPS"
+                            maxLength={2000}
                             className="focus-visible:ring-0 focus-visible:border-input bg-white"
                             required
                           />
@@ -823,6 +865,7 @@ export function Planejamento() {
                               )
                             }
                             placeholder="Ex.: acima de 80"
+                            maxLength={2000}
                             className="focus-visible:ring-0 focus-visible:border-input bg-white"
                             required
                           />
@@ -849,6 +892,7 @@ export function Planejamento() {
                                   )
                                 }
                                 placeholder="Ex.: Etapas concluídas"
+                                maxLength={2000}
                                 className="focus-visible:ring-0 focus-visible:border-input"
                                 required
                               />
@@ -871,6 +915,7 @@ export function Planejamento() {
                                   )
                                 }
                                 placeholder="Ex.: Etapas previstas"
+                                maxLength={2000}
                                 className="focus-visible:ring-0 focus-visible:border-input"
                                 required
                               />

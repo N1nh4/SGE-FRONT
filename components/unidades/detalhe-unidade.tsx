@@ -29,6 +29,7 @@ import {
   fetchColaboradores,
   fetchPerfis,
   fetchUnidadeById,
+  mensagemErro,
   updateColaborador,
   updateUsuarioStatus,
   type Colaborador,
@@ -93,8 +94,8 @@ export function DetalheUnidade({ unidadeId }: { unidadeId: number }) {
       await updateUsuarioStatus(col.id, 0);
       toast.success(`${col.nome} foi inativado.`);
       carregarColaboradores();
-    } catch {
-      toast.error("Erro ao inativar o colaborador.");
+    } catch (erro) {
+      toast.error(mensagemErro(erro, "Erro ao inativar o colaborador."));
     }
   }
 
@@ -125,8 +126,8 @@ export function DetalheUnidade({ unidadeId }: { unidadeId: number }) {
       }
       setOpen(false);
       carregarColaboradores();
-    } catch {
-      toast.error(colaboradorEditando ? "Erro ao atualizar o colaborador." : "Erro ao adicionar o colaborador.");
+    } catch (erro) {
+      toast.error(mensagemErro(erro, colaboradorEditando ? "Erro ao atualizar o colaborador." : "Erro ao adicionar o colaborador."));
     } finally {
       setSalvando(false);
     }
