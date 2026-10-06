@@ -51,10 +51,7 @@ export function Sidebar() {
   });
 
   useEffect(() => {
-    window.localStorage.setItem(
-      "sge-menu-recolhido",
-      recolhido ? "1" : "0",
-    );
+    window.localStorage.setItem("sge-menu-recolhido", recolhido ? "1" : "0");
   }, [recolhido]);
 
   const itensVisiveis = navItems.filter(
@@ -77,7 +74,7 @@ export function Sidebar() {
       <div className="flex h-16 shrink-0 items-center border-b border-white/10">
         <button
           onClick={() => setRecolhido(!recolhido)}
-          className="absolute left-4 top-0 z-30 flex h-16 w-8 cursor-pointer items-center justify-center text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+          className="absolute left-0 top-0 z-30 flex h-16 w-16 cursor-pointer items-center justify-center text-white/60 transition-colors hover:bg-white/10 hover:text-white"
           title={recolhido ? "Expandir menu" : "Recolher menu"}
           aria-label={recolhido ? "Expandir menu" : "Recolher menu"}
           aria-expanded={!recolhido}
@@ -102,7 +99,7 @@ export function Sidebar() {
             href={href}
             title={!recolhido ? label : undefined}
             className={`group relative flex min-h-9 items-center rounded-lg text-sm font-medium transition-colors ${
-              recolhido ? "ml-0.5 size-9 justify-center" : "gap-3 px-3 py-2"
+              recolhido ? "mx-auto size-9 justify-center" : "gap-3 px-3 py-2"
             } ${
               estaAtivo(href)
                 ? "bg-bege text-white hover:bg-bege/90"
@@ -127,8 +124,8 @@ export function Sidebar() {
             href="/configurador"
             title={!recolhido ? "Configurações" : undefined}
             className={`group relative flex min-h-9 items-center rounded-lg text-sm font-medium transition-colors ${
-              recolhido ? "ml-0.5 size-9 justify-center" : "gap-3 px-3 py-2"
-              } ${
+              recolhido ? "mx-auto size-9 justify-center" : "gap-3 px-3 py-2"
+            } ${
               estaAtivo("/configurador")
                 ? "bg-bege text-white hover:bg-bege/90"
                 : "bg-white/10 text-white hover:bg-white/15"
@@ -141,12 +138,12 @@ export function Sidebar() {
         )}
       </nav>
 
-      <div className="relative border-t border-white/10 py-4">
+      <div className="relative border-t border-white/10 px-4 py-4">
         {recolhido ? (
-          <div className="flex">
+          <div className="flex justify-center">
             <button
               onClick={logout}
-              className="group relative ml-3.5 flex size-9 cursor-pointer items-center justify-center rounded-lg text-white/50 transition-colors hover:bg-white/10 hover:text-white"
+              className="group relative flex size-9 cursor-pointer items-center justify-center rounded-lg text-white/50 transition-colors hover:bg-white/10 hover:text-white"
               aria-label="Sair"
             >
               <LogOut className="size-4" />
@@ -154,7 +151,7 @@ export function Sidebar() {
             </button>
           </div>
         ) : (
-          <div className="flex items-center justify-between px-4">
+          <div className="flex items-center justify-between">
             <span className="truncate text-xs text-white/70">
               {usuario?.nome}
             </span>
