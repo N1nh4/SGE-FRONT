@@ -451,9 +451,7 @@ export function Planejamento() {
         .filter(([, valor]) => !valor.trim())
         .map(([campo]) => campo);
       if (faltando.length > 0) {
-        toast.error(
-          `Indicador ${i + 1}: preencha ${faltando.join(", ")}.`,
-        );
+        toast.error(`Indicador ${i + 1}: preencha ${faltando.join(", ")}.`);
         setEtapaForm(2);
         return;
       }
@@ -677,7 +675,9 @@ export function Planejamento() {
                     <th className="w-[30%] px-5 py-3 font-medium">
                       Iniciativa
                     </th>
-                    <th className="w-[15%] px-5 py-3 font-medium">Responsável</th>
+                    <th className="w-[15%] px-5 py-3 font-medium">
+                      Responsável
+                    </th>
                     <th className="w-[10%] px-5 py-3 font-medium">Criado em</th>
                     <th className="w-[12%] px-5 py-3 font-medium">Progresso</th>
                     {podeEditar && (
@@ -689,10 +689,7 @@ export function Planejamento() {
                 </thead>
                 <tbody>
                   {paginasVisiveis.map((item) => (
-                    <tr
-                      key={item.id}
-                      className="border-b last:border-0"
-                    >
+                    <tr key={item.id} className="border-b last:border-0">
                       <td className="px-5 py-4 align-top">
                         <span className="border border-solid border-black/[.08] inline-flex w-fit rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
                           {item.objetivo.codigo}
@@ -716,21 +713,21 @@ export function Planejamento() {
                       <td className="px-5 py-4 align-top text-muted-foreground">
                         {formatarData(item.created_at)}
                       </td>
-                        <td className="px-5 py-4 align-top">
-                          <div className="flex items-center gap-3">
-                            <div className="h-2 w-32 overflow-hidden rounded-full bg-muted">
-                              <div
-                                className="h-full rounded-full bg-bege"
-                                style={{ width: `${item.progresso ?? 0}%` }}
-                              />
-                            </div>
-                            <span className="text-xs text-muted-foreground">
-                              {item.progresso == null
-                                ? "—"
-                                : `${Math.round(item.progresso)}%`}
-                            </span>
+                      <td className="px-5 py-4 align-top">
+                        <div className="flex items-center gap-3">
+                          <div className="h-2 w-32 overflow-hidden rounded-full bg-muted">
+                            <div
+                              className="h-full rounded-full bg-bege"
+                              style={{ width: `${item.progresso ?? 0}%` }}
+                            />
                           </div>
-                        </td>
+                          <span className="text-xs text-muted-foreground">
+                            {item.progresso == null
+                              ? "—"
+                              : `${Math.round(item.progresso)}%`}
+                          </span>
+                        </div>
+                      </td>
                       {(podeEditar || podeExcluir) && (
                         <td className="px-5 py-4 align-top">
                           <div className="flex items-center justify-end gap-2">
@@ -1028,9 +1025,9 @@ export function Planejamento() {
                           </Label>
                           <p className="text-xs text-muted-foreground">
                             Para metas como &quot;capacitar X% dos
-                            colaboradores&quot;. O sistema cria uma etapa por pessoa
-                            das unidades marcadas, e cada setor comprova apenas
-                            os seus.
+                            colaboradores&quot;. O sistema cria uma etapa por
+                            pessoa das unidades marcadas, e cada setor comprova
+                            apenas os seus.
                           </p>
 
                           {indicador.porColaborador && (
@@ -1048,9 +1045,7 @@ export function Planejamento() {
                                     type="number"
                                     min={1}
                                     max={100}
-                                    value={
-                                      indicador.percentualColaboradores
-                                    }
+                                    value={indicador.percentualColaboradores}
                                     onChange={(event) =>
                                       atualizarIndicador(
                                         index,
@@ -1065,7 +1060,6 @@ export function Planejamento() {
                                   </span>
                                 </div>
                               </div>
-                
                             </div>
                           )}
                         </div>
@@ -1088,8 +1082,8 @@ export function Planejamento() {
                           </div>
                           {indicador.porColaborador && (
                             <p className="text-xs text-muted-foreground">
-                              As etapas viram os próprios colaboradores, com
-                              uma comprovação para cada um.
+                              As etapas viram os próprios colaboradores, com uma
+                              comprovação para cada um.
                             </p>
                           )}
                           {!indicador.porColaborador &&
@@ -1182,13 +1176,12 @@ export function Planejamento() {
                                 }
                                 className="size-4 rounded border-gray-300"
                               />
-                              Repete todo ano
+                              Cíclico anual
                             </label>
                             {indicador.anual && indicador.prazo && (
                               <p className="text-xs text-muted-foreground">
-                                Vence todo ano em{" "}
-                                {indicador.prazo.slice(8, 10)}/
-                                {indicador.prazo.slice(5, 7)}.
+                                Vence todo ano em {indicador.prazo.slice(8, 10)}
+                                /{indicador.prazo.slice(5, 7)}.
                               </p>
                             )}
                           </div>

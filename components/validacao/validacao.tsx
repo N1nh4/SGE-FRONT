@@ -107,7 +107,9 @@ function DetalhePendencia({
     <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
       <span className={`inline-block size-2 shrink-0 rounded-full ${cor}`} />
       {rotulo}
-      <span className="font-semibold tabular-nums text-foreground">{valor}</span>
+      <span className="font-semibold tabular-nums text-foreground">
+        {valor}
+      </span>
     </span>
   );
 }
@@ -213,9 +215,7 @@ export function Validacao({
             .filter((ind) =>
               unidadesSelecionadas.length === 0
                 ? ind.unidades.length > 0
-                : ind.unidades.some((u) =>
-                    unidadesSelecionadas.includes(u.id),
-                  ),
+                : ind.unidades.some((u) => unidadesSelecionadas.includes(u.id)),
             )
             .map(async (indicador) => {
               const comprovacoes = await fetchComprovacoes(indicador.id);
@@ -685,8 +685,7 @@ export function Validacao({
                     </td>
                     <td className="px-5 py-4 align-top text-muted-foreground">
                       {formatarPrazo(
-                        linha.indicador.prazo_efetivo ??
-                          linha.indicador.prazo,
+                        linha.indicador.prazo_efetivo ?? linha.indicador.prazo,
                       )}
                     </td>
                     <td className="px-5 py-4 align-top">
@@ -707,7 +706,6 @@ export function Validacao({
                             className="cursor-pointer border border-solid border-black/[.08] bg-white text-azul-escuro hover:bg-white/90"
                           >
                             <Eye />
-                            Ver
                           </Button>
                         )}
                       </div>
