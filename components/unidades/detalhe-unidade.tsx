@@ -51,6 +51,7 @@ export function DetalheUnidade({ unidadeId }: { unidadeId: number }) {
   const [status, setStatus] = useState(1);
   const [salvando, setSalvando] = useState(false);
   const [colaboradorEditando, setColaboradorEditando] = useState<Colaborador | null>(null);
+  const colaboradoresAtivos = colaboradores.filter((col) => col.status === 1);
 
   useEffect(() => {
     fetchUnidadeById(unidadeId)
@@ -166,9 +167,15 @@ export function DetalheUnidade({ unidadeId }: { unidadeId: number }) {
               {unidade?.nome ?? "Carregando..."}
             </h2>
             <p className="text-sm text-muted-foreground">
-              {colaboradores.length > 0
-                ? `${colaboradores.length} colaboradores`
-                : "Nenhum colaborador vinculado."}
+              {colaboradoresAtivos.length > 0
+                ? `${colaboradoresAtivos.length} ${
+                    colaboradoresAtivos.length === 1
+                      ? "colaborador"
+                      : "colaboradores"
+                  }`
+                : colaboradores.length > 0
+                  ? "Nenhum colaborador ativo."
+                  : "Nenhum colaborador vinculado."}
             </p>
           </div>
         </div>

@@ -87,9 +87,9 @@ export function ProtectedLayout({
             acoes={headerAcoes}
           />
         )}
-        <main key={pathname} className="flex flex-1 flex-col overflow-y-auto">
+        <div key={pathname} className="flex flex-1 flex-col overflow-y-auto">
           {children}
-        </main>
+        </div>
       </div>
     </div>
   );

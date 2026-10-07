@@ -72,7 +72,10 @@ export function Unidades() {
           fetchColaboradores(u.id)
             .then((cols) => {
               if (ativo)
-                setContagens((prev) => ({ ...prev, [u.id]: cols.length }));
+                setContagens((prev) => ({
+                  ...prev,
+                  [u.id]: cols.filter((c) => c.status === 1).length,
+                }));
             })
             .catch(() => {}),
         );
