@@ -54,6 +54,19 @@ export function Sidebar() {
     window.localStorage.setItem("sge-menu-recolhido", recolhido ? "1" : "0");
   }, [recolhido]);
 
+  const [barraAberta, setBarraAberta] = useState<boolean>(() => !recolhido);
+
+  useEffect(() => {
+    const timer = setTimeout(
+      () => setBarraAberta(!recolhido),
+      recolhido ? 0 : 200,
+    );
+    return () => clearTimeout(timer);
+  }, [recolhido]);
+
+  const contadorVisivel = !recolhido && barraAberta;
+  const pontoVisivel = !contadorVisivel;
+
   const itensVisiveis = navItems.filter(
     (item) =>
       usuario?.paginas?.some(
@@ -113,12 +126,14 @@ export function Sidebar() {
             >
               {label}
             </span>
-            {!recolhido && href === "/notificacoes" && naoLidas > 0 && (
-              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-semibold leading-none text-white">
-                {naoLidas > 99 ? "99+" : naoLidas}
-              </span>
-            )}
-            {recolhido && href === "/notificacoes" && naoLidas > 0 && (
+            {contadorVisivel &&
+              href === "/notificacoes" &&
+              naoLidas > 0 && (
+                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-semibold leading-none text-white">
+                  {naoLidas > 99 ? "99+" : naoLidas}
+                </span>
+              )}
+            {pontoVisivel && href === "/notificacoes" && naoLidas > 0 && (
               <span className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-red-500" />
             )}
           </Link>
