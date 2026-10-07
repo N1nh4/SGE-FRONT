@@ -1065,11 +1065,7 @@ export function Planejamento() {
                                   </span>
                                 </div>
                               </div>
-                              <p className="flex-1 text-xs text-muted-foreground">
-                                {indicador.unidadeIds.length === 0
-                                  ? "Marque ao menos uma unidade abaixo para ver a quantidade de colaboradores."
-                                  : "As etapas serão criadas ao salvar o planejamento."}
-                              </p>
+                
                             </div>
                           )}
                         </div>
