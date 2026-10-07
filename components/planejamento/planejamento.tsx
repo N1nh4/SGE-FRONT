@@ -44,9 +44,11 @@ import {
   fetchMinhasPropostas,
   fetchObjetivos,
   fetchPlanejamento,
+  fetchPlanejamentoById,
   fetchPropostasPendentes,
   fetchUnidades,
   converterProposta,
+  gerarEtapasColaboradores,
   mensagemErro,
   updatePlanejamento,
   type Objetivo,
@@ -68,6 +70,11 @@ type IndicadorForm = {
   anual: boolean;
   unidadeIds: string[];
   etapas: string[];
+  // Metas de capacitação são medidas por colaborador comprovado. Quando
+  // verdadeiro, o sistema cria uma etapa por pessoa das unidades marcadas,
+  // em vez de o usuário digitar as etapas.
+  porColaborador: boolean;
+  percentualColaboradores: string;
 };
 
 function indicadorVazio(): IndicadorForm {
@@ -81,6 +88,8 @@ function indicadorVazio(): IndicadorForm {
     anual: false,
     unidadeIds: [],
     etapas: [],
+    porColaborador: false,
+    percentualColaboradores: "100",
   };
 }
 
@@ -282,17 +291,30 @@ export function Planejamento() {
     setObjetivoId(String(item.objetivo.id));
     setNome(item.nome);
     setIndicadores(
-      item.indicadores.map((indicador) => ({
-        nome: indicador.nome,
-        meta: indicador.meta,
-        rotuloX: indicador.rotulo_x,
-        rotuloY: indicador.rotulo_y,
-        orientacao: indicador.orientacao,
-        prazo: indicador.prazo ?? "",
-        anual: indicador.anual,
-        unidadeIds: indicador.unidades.map((u) => String(u.id)),
-        etapas: indicador.etapas.map((e) => e.nome),
-      })),
+      item.indicadores.map((indicador) => {
+        // Etapa com colaborador_id veio da geração automática. Todas as etapas
+        // têm de ser geradas, ou nenhuma: misturar etapa manual com
+        // collaborator gerado quebraria a leitura da meta.
+        const temGerada = indicador.etapas.some(
+          (e) => e.colaborador_id != null,
+        );
+        const todasGeradas =
+          indicador.etapas.length > 0 &&
+          indicador.etapas.every((e) => e.colaborador_id != null);
+        return {
+          nome: indicador.nome,
+          meta: indicador.meta,
+          rotuloX: indicador.rotulo_x,
+          rotuloY: indicador.rotulo_y,
+          orientacao: indicador.orientacao,
+          prazo: indicador.prazo ?? "",
+          anual: indicador.anual,
+          unidadeIds: indicador.unidades.map((u) => String(u.id)),
+          etapas: temGerada ? [] : indicador.etapas.map((e) => e.nome),
+          porColaborador: todasGeradas,
+          percentualColaboradores: "100",
+        };
+      }),
     );
     setEtapaForm(1);
     setOpen(true);
@@ -301,7 +323,7 @@ export function Planejamento() {
   function atualizarIndicador(
     index: number,
     campo: keyof IndicadorForm,
-    valor: string,
+    valor: string | boolean,
   ) {
     setIndicadores((prev) =>
       prev.map((indicador, i) =>
@@ -449,22 +471,60 @@ export function Planejamento() {
         prazo: indicador.prazo || null,
         anual: indicador.anual,
         unidade_ids: indicador.unidadeIds.map(Number),
-        etapas: indicador.etapas,
+        // Na geração por colaborador as etapas vêm do cadastro de pessoas, e
+        // não da digitação manual.
+        etapas: indicador.porColaborador ? [] : indicador.etapas,
       })),
     };
 
     try {
+      let salvo: Planejamento;
       if (editando) {
-        const atualizado = await updatePlanejamento(editando.id, dados);
+        salvo = await updatePlanejamento(editando.id, dados);
         setItens((prev) =>
-          prev.map((item) => (item.id === atualizado.id ? atualizado : item)),
+          prev.map((item) => (item.id === salvo.id ? salvo : item)),
         );
         toast.success("Planejamento atualizado com sucesso.");
       } else {
-        const criado = await createPlanejamento(dados);
-        setItens((prev) => [...prev, criado]);
+        salvo = await createPlanejamento(dados);
+        setItens((prev) => [...prev, salvo]);
         toast.success("Planejamento criado com sucesso.");
       }
+
+      // As etapas por colaborador só existem depois que o indicador tem id, por
+      // isso a geração roda após o salvamento. Os indicadores do formulário
+      // estão na mesma ordem dos salvos, então o pareamento é por índice.
+      const porGerar = indicadores
+        .map((form, indice) => ({ form, indice }))
+        .filter(({ form }) => form.porColaborador);
+      for (const { form, indice } of porGerar) {
+        const percentual = Number(form.percentualColaboradores);
+        if (!Number.isFinite(percentual) || percentual <= 0) continue;
+        const alvo = salvo.indicadores[indice];
+        if (!alvo) continue;
+        try {
+          const r = await gerarEtapasColaboradores(alvo.id, percentual);
+          const resumo = r.alvo_por_unidade
+            .map((a) => `${a.unidade_nome}: ${a.alvo} de ${a.populacao}`)
+            .join(" · ");
+          toast.success(
+            `${r.etapas_criadas} etapa(s) criada(s) por colaborador.` +
+              (resumo ? ` Alvo — ${resumo}.` : ""),
+          );
+          const atualizado = await fetchPlanejamentoById(salvo.id);
+          setItens((prev) =>
+            prev.map((item) => (item.id === atualizado.id ? atualizado : item)),
+          );
+        } catch (erro) {
+          toast.error(
+            mensagemErro(
+              erro,
+              "Planejamento salvo, mas as etapas por colaborador não foram geradas.",
+            ),
+          );
+        }
+      }
+
       refreshNotificacoes().catch(() => {});
     } catch (erro) {
       toast.error(
@@ -656,19 +716,21 @@ export function Planejamento() {
                       <td className="px-5 py-4 align-top text-muted-foreground">
                         {formatarData(item.created_at)}
                       </td>
-                      <td className="px-5 py-4 align-top">
-                        <div className="flex items-center gap-3">
-                          <div className="h-2 w-32 overflow-hidden rounded-full bg-muted">
-                            <div
-                              className="h-full rounded-full bg-bege"
-                              style={{ width: `${item.progresso}%` }}
-                            />
+                        <td className="px-5 py-4 align-top">
+                          <div className="flex items-center gap-3">
+                            <div className="h-2 w-32 overflow-hidden rounded-full bg-muted">
+                              <div
+                                className="h-full rounded-full bg-bege"
+                                style={{ width: `${item.progresso ?? 0}%` }}
+                              />
+                            </div>
+                            <span className="text-xs text-muted-foreground">
+                              {item.progresso == null
+                                ? "—"
+                                : `${Math.round(item.progresso)}%`}
+                            </span>
                           </div>
-                          <span className="text-xs text-muted-foreground">
-                            {Math.round(item.progresso)}%
-                          </span>
-                        </div>
-                      </td>
+                        </td>
                       {(podeEditar || podeExcluir) && (
                         <td className="px-5 py-4 align-top">
                           <div className="flex items-center justify-end gap-2">
@@ -949,59 +1011,133 @@ export function Planejamento() {
                         </div>
 
                         <div className="grid gap-2">
+                          <Label className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={indicador.porColaborador}
+                              onChange={(event) =>
+                                atualizarIndicador(
+                                  index,
+                                  "porColaborador",
+                                  event.target.checked,
+                                )
+                              }
+                              className="size-4 cursor-pointer accent-[var(--color-bege)]"
+                            />
+                            Medir por colaborador
+                          </Label>
+                          <p className="text-xs text-muted-foreground">
+                            Para metas como &quot;capacitar X% dos
+                            colaboradores&quot;. O sistema cria uma etapa por pessoa
+                            das unidades marcadas, e cada setor comprova apenas
+                            os seus.
+                          </p>
+
+                          {indicador.porColaborador && (
+                            <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-muted/30 p-3">
+                              <div className="grid gap-1">
+                                <Label
+                                  htmlFor={`ind-percentual-${index}`}
+                                  className="text-xs"
+                                >
+                                  Percentual da meta
+                                </Label>
+                                <div className="flex items-center gap-2">
+                                  <Input
+                                    id={`ind-percentual-${index}`}
+                                    type="number"
+                                    min={1}
+                                    max={100}
+                                    value={
+                                      indicador.percentualColaboradores
+                                    }
+                                    onChange={(event) =>
+                                      atualizarIndicador(
+                                        index,
+                                        "percentualColaboradores",
+                                        event.target.value,
+                                      )
+                                    }
+                                    className="h-8 w-24 focus-visible:ring-0 focus-visible:border-input"
+                                  />
+                                  <span className="text-sm text-muted-foreground">
+                                    % dos colaboradores
+                                  </span>
+                                </div>
+                              </div>
+                              <p className="flex-1 text-xs text-muted-foreground">
+                                {indicador.unidadeIds.length === 0
+                                  ? "Marque ao menos uma unidade abaixo para ver a quantidade de colaboradores."
+                                  : "As etapas serão criadas ao salvar o planejamento."}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="grid gap-2">
                           <div className="flex items-center justify-between">
                             <Label>Etapas (denominador Y)</Label>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={() => adicionarEtapa(index)}
-                              className="cursor-pointer"
-                            >
-                              <Plus />
-                              Adicionar etapa
-                            </Button>
+                            {!indicador.porColaborador && (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => adicionarEtapa(index)}
+                                className="cursor-pointer"
+                              >
+                                <Plus />
+                                Adicionar etapa
+                              </Button>
+                            )}
                           </div>
-                          {indicador.etapas.length === 0 && (
+                          {indicador.porColaborador && (
                             <p className="text-xs text-muted-foreground">
-                              Nenhuma etapa cadastrada. Adicione as etapas para
-                              compor o total (Y) da fórmula.
+                              As etapas viram os próprios colaboradores, com
+                              uma comprovação para cada um.
                             </p>
                           )}
+                          {!indicador.porColaborador &&
+                            indicador.etapas.length === 0 && (
+                              <p className="text-xs text-muted-foreground">
+                                Nenhuma etapa cadastrada. Adicione as etapas
+                                para compor o total (Y) da fórmula.
+                              </p>
+                            )}
                           <div className="space-y-2">
-                            {indicador.etapas.map((etapa, etapaIndex) => (
-                              <div
-                                key={etapaIndex}
-                                className="flex items-center gap-2"
-                              >
-                                <span className="text-xs text-muted-foreground w-5 text-right">
-                                  {etapaIndex + 1}.
-                                </span>
-                                <Input
-                                  value={etapa}
-                                  onChange={(event) =>
-                                    atualizarEtapa(
-                                      index,
-                                      etapaIndex,
-                                      event.target.value,
-                                    )
-                                  }
-                                  placeholder={`Etapa ${etapaIndex + 1}`}
-                                  className="focus-visible:ring-0 focus-visible:border-input bg-white"
-                                />
-                                <Button
-                                  type="button"
-                                  size="icon-xs"
-                                  variant="outline"
-                                  onClick={() =>
-                                    removerEtapa(index, etapaIndex)
-                                  }
-                                  className="cursor-pointer text-red-600 hover:text-red-600 shrink-0"
+                            {!indicador.porColaborador &&
+                              indicador.etapas.map((etapa, etapaIndex) => (
+                                <div
+                                  key={etapaIndex}
+                                  className="flex items-center gap-2"
                                 >
-                                  <Trash />
-                                </Button>
-                              </div>
-                            ))}
+                                  <span className="text-xs text-muted-foreground w-5 text-right">
+                                    {etapaIndex + 1}.
+                                  </span>
+                                  <Input
+                                    value={etapa}
+                                    onChange={(event) =>
+                                      atualizarEtapa(
+                                        index,
+                                        etapaIndex,
+                                        event.target.value,
+                                      )
+                                    }
+                                    placeholder={`Etapa ${etapaIndex + 1}`}
+                                    className="focus-visible:ring-0 focus-visible:border-input bg-white"
+                                  />
+                                  <Button
+                                    type="button"
+                                    size="icon-xs"
+                                    variant="outline"
+                                    onClick={() =>
+                                      removerEtapa(index, etapaIndex)
+                                    }
+                                    className="cursor-pointer text-red-600 hover:text-red-600 shrink-0"
+                                  >
+                                    <Trash />
+                                  </Button>
+                                </div>
+                              ))}
                           </div>
                         </div>
 

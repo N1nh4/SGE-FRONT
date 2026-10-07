@@ -6,9 +6,9 @@ import { ArrowLeft } from "lucide-react";
 export default async function Page({
   params,
 }: {
-  params: Promise<{ id: string; indicadorId: string }>;
+  params: Promise<{ indicadorId: string }>;
 }) {
-  const { id, indicadorId } = await params;
+  const { indicadorId } = await params;
 
   return (
     <ProtectedLayout
@@ -23,10 +23,7 @@ export default async function Page({
         </Link>
       }
     >
-      <PaginaComprovacoes
-        planejamentoId={Number(id)}
-        indicadorId={Number(indicadorId)}
-      />
+      <PaginaComprovacoes indicadorId={Number(indicadorId)} />
     </ProtectedLayout>
   );
 }

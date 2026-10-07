@@ -302,7 +302,8 @@ export function Validacao({
   }, [linhasFiltradas, paginaSegura]);
 
   useEffect(() => {
-    setPaginaAtual(1);
+    const timeout = setTimeout(() => setPaginaAtual(1), 0);
+    return () => clearTimeout(timeout);
   }, [filtrosStatus, busca, unidadesSelecionadas, mes, ano]);
 
   // Aqui o objeto medido é o documento de comprovação, não o indicador: uma

@@ -145,14 +145,6 @@ function calcularStatus(
   statusConsolidado: StatusConsolidado;
 } {
   const totalEtapas = indicador.etapas.length;
-  if (totalEtapas === 0) {
-    return {
-      totalEtapas: 0,
-      etapasAprovadas: 0,
-      temRecusa: false,
-      statusConsolidado: "pendente",
-    };
-  }
 
   // Só a comprovação vigente de cada etapa vale para o status (mesma regra de
   // validacao.tsx e indicadores.tsx). Sem isso, um "recusado" antigo continuaria
@@ -173,6 +165,29 @@ function calcularStatus(
   const temSemAtualizacao = vigentes.some(
     (c) => c.status === "sem_atualizacao",
   );
+
+  // Indicador sem etapas não tem "etapas aprovadas" para contar. Forçar
+  // "pendente" deixava o indicador preso em Pendente para sempre, mesmo com
+  // documentos aprovados. Aqui o status reflete a comprovação vigente mais
+  // recente: meta sem etapas é julgada na validação, não por contagem.
+  if (totalEtapas === 0) {
+    let statusConsolidado: StatusConsolidado = "pendente";
+    if (temRecusa) {
+      statusConsolidado = "recusado";
+    } else if (vigentes.some((c) => c.status === "aprovado")) {
+      statusConsolidado = "aprovado";
+    } else if (vigentes.some((c) => c.status === "analise")) {
+      statusConsolidado = "analise";
+    } else if (temSemAtualizacao) {
+      statusConsolidado = "sem_atualizacao";
+    }
+    return {
+      totalEtapas: 0,
+      etapasAprovadas: 0,
+      temRecusa,
+      statusConsolidado,
+    };
+  }
 
   // Aprovação é terminal: se a etapa já foi aprovada em alguma versão, ela
   // conta como concluída mesmo que depois tenha havido novo registro.
@@ -322,7 +337,8 @@ export function Comprovacoes() {
   }, [linhasFiltradas, paginaSegura]);
 
   useEffect(() => {
-    setPaginaAtual(1);
+    const timeout = setTimeout(() => setPaginaAtual(1), 0);
+    return () => clearTimeout(timeout);
   }, [filtrosStatus, busca]);
 
   const totalIndicadores = linhas.length;
@@ -551,7 +567,9 @@ export function Comprovacoes() {
                         {statusLabel(linha.statusConsolidado)}
                       </span>
                       <span className="text-xs text-muted-foreground">
-                        {linha.etapasAprovadas}/{linha.totalEtapas}
+                        {linha.totalEtapas === 0
+                          ? "por competência"
+                          : `${linha.etapasAprovadas}/${linha.totalEtapas}`}
                       </span>
                     </div>
                   </td>
@@ -573,7 +591,7 @@ export function Comprovacoes() {
                         size="sm"
                         onClick={() =>
                           router.push(
-                            `/planejamento/${linha.iniciativaId}/comprovacoes/${linha.indicador.id}`,
+                            `/comprovacoes/${linha.indicador.id}`,
                           )
                         }
                         className="cursor-pointer border border-solid border-black/[.08] bg-white text-azul-escuro hover:bg-white/90"

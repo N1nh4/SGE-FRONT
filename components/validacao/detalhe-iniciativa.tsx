@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -102,7 +102,10 @@ export function DetalheIniciativa({
   const podeAprovar = pode("/validacao", "aprovar");
   const [unidade, setUnidade] = useState<Unidade | null>(null);
   const [itens, setItens] = useState<ComprovacaoDetalhe[]>([]);
-  const [indiceAtual, setIndiceAtual] = useState(0);
+  // A navegação é em dois níveis: a lista é agrupada por iniciativa (meta) e,
+  // dentro da meta, percorre os comprovantes daquela iniciativa.
+  const [indiceMeta, setIndiceMeta] = useState(0);
+  const [indiceItem, setIndiceItem] = useState(0);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [carregandoPdf, setCarregandoPdf] = useState(false);
   const [carregando, setCarregando] = useState(true);
@@ -186,6 +189,8 @@ export function DetalheIniciativa({
           return true;
         });
 
+        // A lista já vem ordenada por data de envio (mais recente primeiro),
+        // então o primeiro item de cada iniciativa define a ordem das metas.
         const indiceInicial = Math.max(
           0,
           filtrados.findIndex((item) => item.planejamentoId === planejamentoId),
@@ -193,7 +198,8 @@ export function DetalheIniciativa({
 
         if (!ativo) return;
         setItens(filtrados);
-        setIndiceAtual(indiceInicial);
+        setIndiceMeta(indiceInicial);
+        setIndiceItem(0);
       })
       .catch(() => {
         if (ativo) setErro(true);
@@ -207,7 +213,37 @@ export function DetalheIniciativa({
     };
   }, [unidadeId, planejamentoId, mes, ano, filtroStatus, busca]);
 
-  const itemAtual = itens[indiceAtual] ?? null;
+  // Agrupa por iniciativa preservando a ordem da lista filtrada: a ordem das
+  // metas é a da tabela (mais recente primeiro) e a ordem interna de cada meta
+  // é a dos comprovantes daquela iniciativa.
+  const metas = useMemo(() => {
+    const ordem: number[] = [];
+    const porMeta = new Map<number, ComprovacaoDetalhe[]>();
+    for (const item of itens) {
+      const lista = porMeta.get(item.planejamentoId);
+      if (lista) {
+        lista.push(item);
+      } else {
+        porMeta.set(item.planejamentoId, [item]);
+        ordem.push(item.planejamentoId);
+      }
+    }
+    return ordem.map((planejamentoId) => ({
+      planejamentoId,
+      itens: porMeta.get(planejamentoId) ?? [],
+    }));
+  }, [itens]);
+
+  // Os índices são derivados, não o item: um filtro novo pode encolher a lista
+  // antes do estado ser reescrito, e o clamp evita tela em branco nesse meio.
+  const indiceMetaSeguro = Math.min(indiceMeta, Math.max(0, metas.length - 1));
+  const metaAtual = metas[indiceMetaSeguro];
+  const itensMeta = metaAtual?.itens ?? [];
+  const indiceItemSeguro = Math.min(
+    indiceItem,
+    Math.max(0, itensMeta.length - 1),
+  );
+  const itemAtual = itensMeta[indiceItemSeguro] ?? null;
 
   const carregarPdf = useCallback(async (comprovacaoId: number) => {
     setCarregandoPdf(true);
@@ -243,15 +279,40 @@ export function DetalheIniciativa({
     );
   }
 
-  function irAnterior() {
-    if (indiceAtual > 0) {
-      setIndiceAtual(indiceAtual - 1);
+  function irMetaAnterior() {
+    if (indiceMetaSeguro > 0) {
+      setIndiceMeta(indiceMetaSeguro - 1);
+      setIndiceItem(0);
     }
   }
 
+  function irProximaMeta() {
+    if (indiceMetaSeguro < metas.length - 1) {
+      setIndiceMeta(indiceMetaSeguro + 1);
+      setIndiceItem(0);
+    }
+  }
+
+  function irAnterior() {
+    if (indiceItemSeguro > 0) setIndiceItem(indiceItemSeguro - 1);
+  }
+
   function irProximo() {
-    if (indiceAtual < itens.length - 1) {
-      setIndiceAtual(indiceAtual + 1);
+    if (indiceItemSeguro < itensMeta.length - 1) {
+      setIndiceItem(indiceItemSeguro + 1);
+    }
+  }
+
+  // Depois de aprovar/reprovar, o fluxo continua: próximo comprovante da mesma
+  // meta e, no último, pula para a primeira comprovação da próxima meta.
+  function avancar() {
+    if (indiceItemSeguro < itensMeta.length - 1) {
+      setIndiceItem(indiceItemSeguro + 1);
+      return;
+    }
+    if (indiceMetaSeguro < metas.length - 1) {
+      setIndiceMeta(indiceMetaSeguro + 1);
+      setIndiceItem(0);
     }
   }
 
@@ -276,7 +337,7 @@ export function DetalheIniciativa({
       });
       atualizarStatus(atualizada.id, atualizada.status);
       toast.success("Comprovação reprovada.");
-      irProximo();
+      avancar();
     } catch (erro) {
       toast.error(mensagemErro(erro, "Erro ao reprovar a comprovação."));
     } finally {
@@ -293,7 +354,7 @@ export function DetalheIniciativa({
       });
       atualizarStatus(atualizada.id, atualizada.status);
       toast.success("Comprovação aprovada.");
-      irProximo();
+      avancar();
     } catch (erro) {
       toast.error(mensagemErro(erro, "Erro ao aprovar a comprovação."));
     }
@@ -362,32 +423,6 @@ export function DetalheIniciativa({
                 >
                   Sair da revisão
                 </Button>
-                <span className="text-sm text-muted-foreground">
-                  {indiceAtual + 1} / {itens.length}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={irAnterior}
-                  disabled={indiceAtual === 0}
-                  className="cursor-pointer"
-                >
-                  <ArrowLeft />
-                  Anterior
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={irProximo}
-                  disabled={indiceAtual >= itens.length - 1}
-                  className="cursor-pointer"
-                >
-                  Próximo
-                  <ArrowRight />
-                </Button>
                 <Button
                   variant="outline"
                   size="sm"
@@ -400,6 +435,68 @@ export function DetalheIniciativa({
                   Nova aba
                 </Button>
               </div>
+
+              {/* Nível 1: entre metas. A ordem é a da tabela da página
+                  anterior, com os mesmos filtros aplicados. */}
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={irMetaAnterior}
+                  disabled={indiceMetaSeguro === 0}
+                  title="Meta anterior"
+                  className="cursor-pointer"
+                >
+                  <ArrowLeft />
+                  Anterior
+                </Button>
+                <span className="flex-1 whitespace-nowrap text-center text-xs tabular-nums text-muted-foreground">
+                  Meta {indiceMetaSeguro + 1}/{metas.length}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={irProximaMeta}
+                  disabled={indiceMetaSeguro >= metas.length - 1}
+                  title="Próxima meta"
+                  className="cursor-pointer"
+                >
+                  Próximo
+                  <ArrowRight />
+                </Button>
+              </div>
+
+              {/* Nível 2: entre os comprovantes da meta atual. Some quando a
+                  meta tem um único documento, para não poluir a coluna. */}
+              {itensMeta.length > 1 && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={irAnterior}
+                    disabled={indiceItemSeguro === 0}
+                    title="Comprovante anterior desta meta"
+                    className="cursor-pointer"
+                  >
+                    <ArrowLeft />
+                    Anterior
+                  </Button>
+                  <span className="flex-1 whitespace-nowrap text-center text-xs tabular-nums text-muted-foreground">
+                    Comprovante {indiceItemSeguro + 1}/{itensMeta.length}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={irProximo}
+                    disabled={indiceItemSeguro >= itensMeta.length - 1}
+                    title="Próximo comprovante desta meta"
+                    className="cursor-pointer"
+                  >
+                    Próximo
+                    <ArrowRight />
+                  </Button>
+                </div>
+              )}
 
               <div>
                 <span

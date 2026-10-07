@@ -82,7 +82,7 @@ const ROTULO_STATUS: Record<StatusPeriodo, string> = {
 
 type LinhaIndicador = {
   status: StatusPeriodo;
-  progresso: number;
+  progresso: number | null;
   prazo: string | null;
 };
 
@@ -93,7 +93,9 @@ function motivosAtencao(
   const motivos: { rotulo: string; classe: string }[] = [];
   if (l.status === "recusado")
     motivos.push({ rotulo: "Comprovação recusada", classe: "text-red-600" });
-  if (l.progresso < 30)
+  // Indicador sem etapas não tem progresso: não entra na lista de alertas,
+  // senão todo indicador sem etapa apareceria como "abaixo de 30%".
+  if (l.progresso != null && l.progresso < 30)
     motivos.push({
       rotulo: "Progresso abaixo de 30%",
       classe: "text-amber-600",
@@ -107,7 +109,11 @@ function motivosAtencao(
   return motivos;
 }
 
-type FaixaProgresso = "finalizados" | "em_andamento" | "nao_iniciados";
+type FaixaProgresso =
+  | "finalizados"
+  | "em_andamento"
+  | "nao_iniciados"
+  | "sem_medicao";
 
 const SERIE_PROGRESSO: SerieGrafico[] = [
   { chave: "finalizados", rotulo: "Finalizado", cor: CORES.verde },
@@ -115,7 +121,8 @@ const SERIE_PROGRESSO: SerieGrafico[] = [
   { chave: "nao_iniciados", rotulo: "Não iniciado", cor: CORES.cinza },
 ];
 
-function faixaProgresso(progresso: number): FaixaProgresso {
+function faixaProgresso(progresso: number | null): FaixaProgresso {
+  if (progresso == null) return "sem_medicao";
   if (progresso >= 100) return "finalizados";
   if (progresso > 0) return "em_andamento";
   return "nao_iniciados";
@@ -179,7 +186,7 @@ type Linha = {
   objetivoId: number;
   prazo: string | null;
   anual: boolean;
-  progresso: number;
+  progresso: number | null;
   status: StatusPeriodo;
   unidades: string;
 };
@@ -320,12 +327,17 @@ export function Indicadores() {
   }, [planejamentos, comprovacoes, filtroUnidades, filtroObjetivo, ano, mes]);
 
   const totalIndicadores = linhas.length;
+  // A média ignora indicadores sem etapas: eles não têm denominador, então
+  // contá-los como 0% puxaria a média do conjunto para baixo artificialmente.
+  const valoresMensuraveis = linhas
+    .map((l) => l.progresso)
+    .filter((p): p is number => p != null);
   const progressoMedio =
-    totalIndicadores === 0
+    valoresMensuraveis.length === 0
       ? 0
       : Math.round(
-          (linhas.reduce((soma, l) => soma + l.progresso, 0) /
-            totalIndicadores) *
+          (valoresMensuraveis.reduce((soma, p) => soma + p, 0) /
+            valoresMensuraveis.length) *
             10,
         ) / 10;
 
@@ -394,6 +406,7 @@ export function Indicadores() {
               finalizados: 0,
               em_andamento: 0,
               nao_iniciados: 0,
+              sem_medicao: 0,
             },
           };
           atual.valores[faixa] += 1;
@@ -426,6 +439,9 @@ export function Indicadores() {
       { objetivo: string; soma: number; qtd: number }
     >();
     for (const l of linhas) {
+      // Sem denominador não há progresso a promediar. Somar null viraria NaN
+      // e derrubaria a meta inteira do objetivo no gráfico.
+      if (l.progresso == null) continue;
       const atual = mapa.get(l.objetivoId) ?? {
         objetivo: l.objetivo,
         soma: 0,
@@ -461,7 +477,7 @@ export function Indicadores() {
 
     const finalizarEm = new Map<string, number>();
     for (const l of linhas) {
-      if (l.progresso < 100) continue;
+      if (l.progresso == null || l.progresso < 100) continue;
 
       const lista = comprovacoes[l.indicadorId] ?? [];
       const vigentePorEtapa = new Map<number, Comprovacao>();
@@ -506,6 +522,9 @@ export function Indicadores() {
       if (pa !== pb) return pa - pb;
       if (a.status === "recusado" && b.status !== "recusado") return -1;
       if (b.status === "recusado" && a.status !== "recusado") return 1;
+      // Indicador sem etapas não tem progresso: vai para o fim, sem virar 0.
+      if (a.progresso == null) return 1;
+      if (b.progresso == null) return -1;
       return a.progresso - b.progresso;
     });
   }, [linhas]);
@@ -852,7 +871,7 @@ export function Indicadores() {
                       >
                         <td className="p-3 font-medium">
                           <Link
-                            href={`/planejamento/${l.iniciativaId}/comprovacoes/${l.indicadorId}`}
+                            href={`/comprovacoes/${l.indicadorId}`}
                             className="hover:underline"
                           >
                             {l.indicadorNome}
@@ -876,7 +895,7 @@ export function Indicadores() {
                         </td>
                         <td className="p-3 text-right tabular-nums">
                           <span className="text-xs font-medium text-muted-foreground">
-                            {l.progresso}%
+                            {l.progresso == null ? "—" : `${l.progresso}%`}
                           </span>
                         </td>
                         <td className="p-3 tabular-nums text-muted-foreground">
@@ -884,7 +903,7 @@ export function Indicadores() {
                         </td>
                         <td className="p-3 text-right">
                           <Link
-                            href={`/planejamento/${l.iniciativaId}/comprovacoes/${l.indicadorId}`}
+                            href={`/comprovacoes/${l.indicadorId}`}
                             className="inline-flex items-center gap-1 text-xs font-medium text-primary underline underline-offset-4 hover:text-foreground"
                           >
                             <CalendarClock className="size-3.5" />

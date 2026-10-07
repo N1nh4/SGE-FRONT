@@ -30,7 +30,7 @@ export function gerarRelatorioPlanejamento(planejamentos: Planejamento[]) {
         `${ind.rotulo_x} / ${ind.rotulo_y}`,
         ind.orientacao,
         ind.unidades[0]?.nome ?? "—",
-        `${Math.round(ind.progresso)}%`,
+        ind.progresso == null ? "—" : `${Math.round(ind.progresso)}%`,
         p.objetivo.ppa,
         p.objetivo.loa,
       ]);

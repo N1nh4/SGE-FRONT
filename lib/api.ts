@@ -147,6 +147,23 @@ export type UnidadeResumo = {
 export type Etapa = {
   id: number;
   nome: string;
+  // Presentes apenas em etapa gerada por colaborador. A unidade define de
+  // qual setor é a etapa, para cada um comprovar apenas os seus.
+  unidade_id?: number | null;
+  colaborador_id?: number | null;
+};
+
+export type AlvoUnidade = {
+  unidade_id: number;
+  unidade_nome: string;
+  populacao: number;
+  alvo: number;
+};
+
+export type EtapasGeradas = {
+  etapas_criadas: number;
+  etapas_removidas: number;
+  alvo_por_unidade: AlvoUnidade[];
 };
 
 export type IndicadorPlanejamento = {
@@ -161,7 +178,9 @@ export type IndicadorPlanejamento = {
   prazo_efetivo: string | null;
   unidades: UnidadeResumo[];
   etapas: Etapa[];
-  progresso: number;
+  // null quando o indicador não tem etapas: sem denominador não existe
+  // progresso. Zero significa "mensurável e ainda não começou".
+  progresso: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -169,7 +188,7 @@ export type IndicadorPlanejamento = {
 export type Planejamento = {
   id: number;
   nome: string;
-  progresso: number;
+  progresso: number | null;
   objetivo: ObjetivoResumo;
   indicadores: IndicadorPlanejamento[];
   created_at: string;
@@ -186,6 +205,9 @@ export type NovoIndicador = {
   anual: boolean;
   unidade_ids: number[];
   etapas: string[];
+  // Percentual da meta medido por colaborador. Preenchido só quando o
+  // indicador gera uma etapa por colaborador das unidades marcadas.
+  percentual_colaboradores?: number | null;
 };
 
 export type NovoPlanejamento = {
@@ -202,6 +224,50 @@ export async function fetchPlanejamentoById(id: number): Promise<Planejamento> {
   const detalhe = await apiFetch<Planejamento>(`/api/planejamento/${id}`);
   if (!detalhe) throw new Error("Planejamento não encontrado");
   return detalhe;
+}
+
+/** Indicador isolado, para a tela /comprovacoes/[indicadorId]. */
+export async function fetchIndicador(
+  indicadorId: number,
+): Promise<IndicadorPlanejamento> {
+  const detalhe = await apiFetch<IndicadorPlanejamento>(
+    `/api/indicadores/${indicadorId}`,
+  );
+  if (!detalhe) throw new Error("Indicador não encontrado");
+  return detalhe;
+}
+
+/** Prévia do alvo por unidade, sem gravar nada no banco. */
+export async function preverAlvoColaboradores(
+  indicadorId: number,
+  percentualAlvo: number,
+): Promise<AlvoUnidade[]> {
+  return (
+    (await apiFetch<AlvoUnidade[]>(
+      `/api/indicadores/${indicadorId}/alvo-colaboradores?percentual_alvo=${percentualAlvo}`,
+    )) ?? []
+  );
+}
+
+/** Gera uma etapa por colaborador nas unidades do indicador. */
+export async function gerarEtapasColaboradores(
+  indicadorId: number,
+  percentualAlvo: number,
+  substituir = true,
+): Promise<EtapasGeradas> {
+  const resultado = await apiFetch<EtapasGeradas>(
+    `/api/indicadores/${indicadorId}/etapas-colaboradores`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        percentual_alvo: percentualAlvo,
+        substituir,
+      }),
+    },
+  );
+  if (!resultado) throw new Error("Falha ao gerar as etapas");
+  return resultado;
 }
 
 export async function createPlanejamento(

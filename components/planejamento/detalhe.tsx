@@ -120,7 +120,7 @@ export function DetalhePlanejamento({ id }: { id: number }) {
                     variant="ghost"
                     onClick={() =>
                       router.push(
-                        `/planejamento/${detalhe.id}/comprovacoes/${indicador.id}`,
+                        `/comprovacoes/${indicador.id}`,
                       )
                     }
                     className="mt-4 flex h-auto w-full items-stretch justify-start gap-3 rounded-lg border border-bege/30 bg-bege/5 p-4 text-left whitespace-normal hover:bg-bege/10 cursor-pointer"
@@ -148,16 +148,24 @@ export function DetalhePlanejamento({ id }: { id: number }) {
                   <div className="mt-4">
                     <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
                       <span>Progresso</span>
-                      <span>{indicador.progresso}%</span>
+                      <span>
+                        {indicador.progresso == null
+                          ? "—"
+                          : `${indicador.progresso}%`}
+                      </span>
                     </div>
                     <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
                       <div
                         className="h-full rounded-full bg-bege"
-                        style={{ width: `${indicador.progresso}%` }}
+                        style={{
+                          width: `${indicador.progresso ?? 0}%`,
+                        }}
                       />
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {indicador.etapas.length} etapa(s) cadastrada(s)
+                      {indicador.etapas.length === 0
+                        ? "Sem etapas: o progresso é definido na validação."
+                        : `${indicador.etapas.length} etapa(s) cadastrada(s)`}
                     </p>
                   </div>
 

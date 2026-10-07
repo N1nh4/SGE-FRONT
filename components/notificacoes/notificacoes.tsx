@@ -104,14 +104,6 @@ export function Notificacao() {
     });
   }
 
-  useEffect(() => {
-    const paraCarregar = visiveis.filter(
-      (n) => n.tipo === "planejamento" && n.entidade_id && !indicadores[n.id],
-    );
-    paraCarregar.forEach((n) => carregarIndicadores(n));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visiveis, indicadores]);
-
   function carregarIndicadores(notificacao: Notificacao) {
     if (notificacao.tipo !== "planejamento" || !notificacao.entidade_id) return;
     if (indicadores[notificacao.id]) return;
@@ -123,6 +115,14 @@ export function Notificacao() {
       )
       .catch(() => {});
   }
+
+  useEffect(() => {
+    const paraCarregar = visiveis.filter(
+      (n) => n.tipo === "planejamento" && n.entidade_id && !indicadores[n.id],
+    );
+    paraCarregar.forEach((n) => carregarIndicadores(n));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visiveis, indicadores]);
 
   async function rotaPara(notificacao: Notificacao): Promise<string> {
     switch (notificacao.tipo) {
@@ -151,7 +151,7 @@ export function Notificacao() {
             const contexto = await fetchComprovacaoContexto(
               notificacao.entidade_id,
             );
-            return `/planejamento/${contexto.planejamento_id}/comprovacoes/${contexto.indicador_id}`;
+            return `/comprovacoes/${contexto.indicador_id}`;
           } catch {
             return "/comprovacoes";
           }
@@ -284,7 +284,7 @@ export function Notificacao() {
                               {indicadoresNotif.map((indicador) => (
                                 <Link
                                   key={indicador.id}
-                                  href={`/planejamento/${notificacao.entidade_id}/comprovacoes/${indicador.id}`}
+                                  href={`/comprovacoes/${indicador.id}`}
                                   onClick={(event) => {
                                     event.stopPropagation();
                                     if (!notificacao.lida) marcarUma(notificacao.id);

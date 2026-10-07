@@ -11,6 +11,7 @@ import {
   Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/context/auth-context";
 import { usePermissoes } from "@/lib/use-permissoes";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,12 +20,12 @@ import {
   deleteComprovacao,
   enviarSemAtualizacao,
   fetchComprovacoes,
-  fetchPlanejamentoById,
+  fetchIndicador,
   uploadComprovacao,
   abrirArquivoComprovacao,
   mensagemErro,
   type Comprovacao,
-  type Planejamento,
+  type IndicadorPlanejamento,
   type StatusComprovacao,
 } from "@/lib/api";
 import {
@@ -37,6 +38,21 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+
+const MESES = [
+  "Janeiro",
+  "Fevereiro",
+  "Março",
+  "Abril",
+  "Maio",
+  "Junho",
+  "Julho",
+  "Agosto",
+  "Setembro",
+  "Outubro",
+  "Novembro",
+  "Dezembro",
+];
 
 const ROTULO_STATUS: Record<StatusComprovacao, string> = {
   analise: "Em análise",
@@ -68,17 +84,14 @@ function formatarData(iso: string | null): string {
   return `${dia}/${mes}/${ano}`;
 }
 
-export function PaginaComprovacoes({
-  planejamentoId,
-  indicadorId,
-}: {
-  planejamentoId: number;
-  indicadorId: number;
-}) {
+export function PaginaComprovacoes({ indicadorId }: { indicadorId: number }) {
   const { pode } = usePermissoes();
+  const { unidadeId } = useAuth();
   const podeCriar = pode("/comprovacoes", "criar");
   const podeExcluir = pode("/comprovacoes", "excluir");
-  const [planejamento, setPlanejamento] = useState<Planejamento | null>(null);
+  const [indicador, setIndicador] = useState<IndicadorPlanejamento | null>(
+    null,
+  );
   const [erro, setErro] = useState(false);
   const [itens, setItens] = useState<Comprovacao[] | null>(null);
   const [carregandoItens, setCarregandoItens] = useState(true);
@@ -89,17 +102,21 @@ export function PaginaComprovacoes({
   const [confirmandoSemAtualizacao, setConfirmandoSemAtualizacao] =
     useState<number | null>(null);
 
-  const indicador = useMemo(
-    () =>
-      planejamento?.indicadores.find((ind) => ind.id === indicadorId) ?? null,
-    [planejamento, indicadorId],
-  );
-
   useEffect(() => {
-    fetchPlanejamentoById(planejamentoId)
-      .then(setPlanejamento)
+    fetchIndicador(indicadorId)
+      .then(setIndicador)
       .catch(() => setErro(true));
-  }, [planejamentoId]);
+  }, [indicadorId]);
+
+  // Etapa gerada por colaborador pertence a uma unidade. Quando o usuário está
+  // com um setor selecionado, ele só vê e comprova os colaboradores desse
+  // setor. Etapa sem unidade (cadastrada à mão) continua visível para todos,
+  // porque não tem origem a filtrar.
+  const etapasVisiveis = useMemo(() => {
+    const todas = indicador?.etapas ?? [];
+    if (unidadeId == null) return todas;
+    return todas.filter((e) => e.unidade_id == null || e.unidade_id === unidadeId);
+  }, [indicador, unidadeId]);
 
   const carregarComprovacoes = () => {
     setCarregandoItens(true);
@@ -126,6 +143,40 @@ export function PaginaComprovacoes({
     }
     return map;
   }, [itens]);
+
+  // Indicador sem etapa não tem cards de etapa para anexar: a comprovação é
+  // registrada por competência (ano/mês), que é como o backend versiona
+  // quando etapa_id vem nulo.
+  const semEtapa = indicador?.etapas.length === 0;
+  const comprovacoesSemEtapa = useMemo(
+    () => (itens ?? []).filter((c) => c.etapa_id == null),
+    [itens],
+  );
+  const competenciaAtual = useMemo(() => {
+    const hoje = new Date();
+    return {
+      ano: hoje.getFullYear(),
+      mes: hoje.getMonth() + 1,
+    };
+  }, []);
+
+  async function handleUploadSemEtapa(
+    event: FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+    if (!arquivo) return;
+    setEnviando(true);
+    try {
+      await uploadComprovacao(indicadorId, null, arquivo);
+      toast.success("Comprovação enviada com sucesso.");
+      setArquivo(null);
+      carregarComprovacoes();
+    } catch (erro) {
+      toast.error(mensagemErro(erro, "Erro ao enviar a comprovação."));
+    } finally {
+      setEnviando(false);
+    }
+  }
 
   async function handleUpload(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -180,7 +231,7 @@ export function PaginaComprovacoes({
     );
   }
 
-  if (!planejamento || !indicador) {
+  if (!indicador) {
     return (
       <main className="flex flex-1 items-center justify-center bg-cinza-claro p-8">
         <div className="h-2 w-40 overflow-hidden rounded-full bg-muted">
@@ -216,11 +267,13 @@ export function PaginaComprovacoes({
               <div className="h-2 w-32 overflow-hidden rounded-full bg-muted">
                 <div
                   className="h-full rounded-full bg-bege"
-                  style={{ width: `${indicador.progresso}%` }}
+                  style={{ width: `${indicador.progresso ?? 0}%` }}
                 />
               </div>
               <span className="text-xs text-muted-foreground">
-                {indicador.progresso}%
+                {indicador.progresso == null
+                  ? "—"
+                  : `${indicador.progresso}%`}
               </span>
             </div>
           </div>
@@ -232,14 +285,141 @@ export function PaginaComprovacoes({
             <h2 className="font-medium">Etapas e Comprovações</h2>
           </div>
           <div className="p-5">
-            {indicador.etapas.length === 0 && (
-              <p className="text-sm text-muted-foreground">
-                Nenhuma etapa cadastrada para este indicador.
-              </p>
-            )}
+            {unidadeId != null &&
+              (indicador?.etapas.length ?? 0) > etapasVisiveis.length && (
+                <p className="mb-4 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
+                  Mostrando {etapasVisiveis.length} de {indicador.etapas.length}{" "}
+                  etapas: cada setor comprova apenas os seus colaboradores. O
+                  progresso acima é do indicador inteiro.
+                </p>
+              )}
+            {semEtapa ? (
+              <div className="space-y-4">
+                <div className="rounded-lg border bg-muted/30 p-4">
+                  <p className="text-sm font-medium">
+                    Este indicador não tem etapas cadastradas
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    As comprovações são registradas por competência
+                    ({MESES[competenciaAtual.mes - 1]}/{competenciaAtual.ano}).
+                    O envio de uma nova versão substitui a anterior do mesmo
+                    mês.
+                  </p>
+                </div>
 
-            <div className="space-y-4">
-              {indicador.etapas.map((etapa, index) => {
+                {arquivo ? (
+                  <form
+                    onSubmit={handleUploadSemEtapa}
+                    className="rounded-lg border p-4"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">
+                          {arquivo.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {MESES[competenciaAtual.mes - 1]}/
+                          {competenciaAtual.ano}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="submit"
+                          size="sm"
+                          disabled={enviando}
+                          className="cursor-pointer"
+                        >
+                          {enviando ? (
+                            <LoaderCircle className="animate-spin" />
+                          ) : (
+                            <Upload />
+                          )}
+                          Enviar
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setArquivo(null)}
+                          className="cursor-pointer"
+                        >
+                          Cancelar
+                        </Button>
+                      </div>
+                    </div>
+                  </form>
+                ) : (
+                  podeCriar && (
+                    <label className="inline-flex cursor-pointer items-center gap-2">
+                      <input
+                        type="file"
+                        accept="application/pdf"
+                        className="hidden"
+                        onChange={(e) => setArquivo(e.target.files?.[0] ?? null)}
+                      />
+                      <span className="inline-flex h-8 items-center gap-2 rounded-lg border border-input bg-background px-3 text-sm font-medium shadow-xs hover:bg-accent">
+                        <Upload className="size-4" />
+                        Enviar comprovação
+                      </span>
+                    </label>
+                  )
+                )}
+
+                {comprovacoesSemEtapa.length > 0 && (
+                  <div className="space-y-2">
+                    {comprovacoesSemEtapa.map((c) => (
+                      <div
+                        key={c.id}
+                        className="flex items-center justify-between gap-3 rounded-lg border p-3"
+                      >
+                        <div className="flex min-w-0 items-center gap-2">
+                          {c.status === "sem_atualizacao" ? (
+                            <CalendarX className="size-4 shrink-0 text-amber-600" />
+                          ) : (
+                            <FileText className="size-4 shrink-0 text-muted-foreground" />
+                          )}
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium">
+                              {c.status === "sem_atualizacao"
+                                ? "Sem atualização neste período"
+                                : c.arquivo_nome}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {MESES[c.mes - 1]}/{c.ano} · versão {c.versao}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <BadgeStatus status={c.status} />
+                          {c.status !== "sem_atualizacao" && (
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => abrirArquivoComprovacao(c.id)}
+                              aria-label="Visualizar comprovação"
+                            >
+                              <ExternalLink />
+                            </Button>
+                          )}
+                          {podeExcluir && (
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => handleDelete(c)}
+                              aria-label="Excluir comprovação"
+                            >
+                              <Trash2 />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {etapasVisiveis.map((etapa, index) => {
                 const comprovacoesEtapa = comprovacoesPorEtapa[etapa.id] ?? [];
                 const comprovacao = comprovacoesEtapa[0] ?? null;
                 const historico = comprovacoesEtapa.slice(1);
@@ -484,6 +664,71 @@ export function PaginaComprovacoes({
                       </div>
                     )}
 
+                    {/* "Sem atualização" registra a ausência do documento naquele
+                        mês, mas não é um estado final: se o papel surgir depois,
+                        o usuário envia uma nova versão, que volta para análise e
+                        substitui o registro vigente. */}
+                    {comprovacao &&
+                      comprovacao.status === "sem_atualizacao" &&
+                      podeCriar &&
+                      (etapaSelecionada === etapa.id ? (
+                        <form
+                          onSubmit={handleUpload}
+                          className="mt-3 flex flex-col gap-3"
+                        >
+                          <div className="grid gap-2">
+                            <Label htmlFor={`arquivo-${etapa.id}`}>
+                              Documento PDF
+                            </Label>
+                            <Input
+                              id={`arquivo-${etapa.id}`}
+                              type="file"
+                              accept="application/pdf"
+                              onChange={(event) =>
+                                setArquivo(event.target.files?.[0] ?? null)
+                              }
+                              className="cursor-pointer"
+                            />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              type="submit"
+                              disabled={!arquivo || enviando}
+                              className="cursor-pointer bg-bege hover:bg-bege/90"
+                            >
+                              {enviando ? (
+                                <LoaderCircle className="animate-spin" />
+                              ) : (
+                                <Upload />
+                              )}
+                              {enviando ? "Enviando..." : "Enviar"}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              onClick={() => {
+                                setEtapaSelecionada(null);
+                                setArquivo(null);
+                              }}
+                              className="cursor-pointer"
+                            >
+                              Cancelar
+                            </Button>
+                          </div>
+                        </form>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEtapaSelecionada(etapa.id)}
+                          className="mt-3 cursor-pointer"
+                        >
+                          <Upload />
+                          Enviar comprovação
+                        </Button>
+                      ))}
+
                     {historico.length > 0 && (
                       <div className="mt-4 border-t pt-3">
                         <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -550,7 +795,8 @@ export function PaginaComprovacoes({
                   </div>
                 );
               })}
-            </div>
+              </div>
+            )}
           </div>
         </section>
 
