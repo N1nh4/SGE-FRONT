@@ -194,6 +194,7 @@ export type IndicadorPlanejamento = {
 export type Planejamento = {
   id: number;
   nome: string;
+  ano: number;
   progresso: number | null;
   objetivo: ObjetivoResumo;
   indicadores: IndicadorPlanejamento[];
@@ -219,11 +220,14 @@ export type NovoIndicador = {
 export type NovoPlanejamento = {
   objetivo_id: number;
   nome: string;
+  // Ano a que o planejamento pertence. Em edição, preserva o ano original.
+  ano: number;
   indicadores: NovoIndicador[];
 };
 
-export async function fetchPlanejamento(): Promise<Planejamento[]> {
-  return (await apiFetch<Planejamento[]>("/api/planejamento")) ?? [];
+export async function fetchPlanejamento(ano?: number): Promise<Planejamento[]> {
+  const query = ano !== undefined ? `?ano=${ano}` : "";
+  return (await apiFetch<Planejamento[]>(`/api/planejamento${query}`)) ?? [];
 }
 
 export async function fetchPlanejamentoById(id: number): Promise<Planejamento> {

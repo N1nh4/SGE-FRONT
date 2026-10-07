@@ -52,6 +52,7 @@ import {
   mensagemErro,
   updatePlanejamento,
   type Objetivo,
+  type NovoPlanejamento,
   type Planejamento,
   type Proposta,
   type Unidade,
@@ -99,6 +100,15 @@ function formatarData(iso: string): string {
   return data.toLocaleDateString("pt-BR");
 }
 
+// Opções do filtro por ano: do próximo ano até 5 anos atrás. Planejamentos
+// mais antigos continuam acessíveis na opção "Todos os anos".
+const ANOS_DISPONIVEIS: number[] = (() => {
+  const corrente = new Date().getFullYear();
+  const anos: number[] = [];
+  for (let ano = corrente + 1; ano >= corrente - 5; ano -= 1) anos.push(ano);
+  return anos;
+})();
+
 export function Planejamento() {
   const searchParams = useSearchParams();
   const { usuario, unidadeId } = useAuth();
@@ -125,6 +135,10 @@ export function Planejamento() {
   const [open, setOpen] = useState(false);
   const [editando, setEditando] = useState<Planejamento | null>(null);
   const [excluindo, setExcluindo] = useState<Planejamento | null>(null);
+  // Filtro da listagem: o ano selecionado (padrão: o corrente). null = todos.
+  const [anoSelecionado, setAnoSelecionado] = useState<number | null>(
+    new Date().getFullYear(),
+  );
   const [objetivoId, setObjetivoId] = useState("");
   const [nome, setNome] = useState("");
   const [indicadores, setIndicadores] = useState<IndicadorForm[]>([
@@ -175,11 +189,14 @@ export function Planejamento() {
   }, [dropdownAberto]);
 
   useEffect(() => {
-    fetchPlanejamento()
+    fetchPlanejamento(anoSelecionado ?? undefined)
       .then(setItens)
       .catch((err) => {
         console.error("Erro ao buscar planejamento:", err);
       });
+  }, [anoSelecionado]);
+
+  useEffect(() => {
     fetchObjetivos()
       .then(setObjetivos)
       .catch((err) => {
@@ -194,7 +211,7 @@ export function Planejamento() {
 
   async function carregarPlanejamentos() {
     try {
-      const dados = await fetchPlanejamento();
+      const dados = await fetchPlanejamento(anoSelecionado ?? undefined);
       setItens(dados);
     } catch (err) {
       console.error("Erro ao buscar planejamento:", err);
@@ -460,9 +477,12 @@ export function Planejamento() {
       }
     }
 
-    const dados = {
+    const dados: NovoPlanejamento = {
       objetivo_id: Number(objetivoId),
       nome,
+      // Ao criar, o ano é o que está selecionado no filtro (padrão: corrente).
+      // Ao editar, preserva o ano original do planejamento.
+      ano: editando ? editando.ano : (anoSelecionado ?? new Date().getFullYear()),
       indicadores: indicadores.map((indicador) => ({
         nome: indicador.nome,
         meta: indicador.meta,
@@ -564,7 +584,31 @@ export function Planejamento() {
   return (
     <>
       <main className="flex-1 bg-cinza-claro px-8 pt-4 pb-8">
-        <div className="mb-4 flex items-center justify-end gap-2">
+        <div className="mb-4 flex items-center gap-2">
+          {visao === "normal" && (
+            <label className="mr-auto flex items-center gap-2 text-sm text-muted-foreground">
+              <span>Ano</span>
+              <select
+                value={anoSelecionado ?? ""}
+                onChange={(event) => {
+                  const valor = event.target.value;
+                  setAnoSelecionado(valor === "" ? null : Number(valor));
+                  setPaginaAtual(1);
+                }}
+                className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring dark:bg-input/30 cursor-pointer"
+              >
+                <option value="">Todos os anos</option>
+                {ANOS_DISPONIVEIS.map((ano) => (
+                  <option key={ano} value={ano}>
+                    {ano}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <div
+            className={`flex items-center gap-2 ${visao !== "normal" ? "ml-auto" : ""}`}
+          >
           {visao !== "normal" ? (
             <>
               <Button
@@ -629,6 +673,7 @@ export function Planejamento() {
               )}
             </>
           )}
+          </div>
         </div>
         {visao === "minhas" ? (
           <>
@@ -674,15 +719,16 @@ export function Planejamento() {
                 <thead>
                   <tr className="border-b bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
                     <th className="w-[5%] px-5 py-3 font-medium">Código</th>
-                    <th className="w-[18%] px-5 py-3 font-medium">Objetivo</th>
-                    <th className="w-[30%] px-5 py-3 font-medium">
+                    <th className="w-[17%] px-5 py-3 font-medium">Objetivo</th>
+                    <th className="w-[28%] px-5 py-3 font-medium">
                       Iniciativa
                     </th>
                     <th className="w-[15%] px-5 py-3 font-medium">
                       Responsável
                     </th>
-                    <th className="w-[10%] px-5 py-3 font-medium">Criado em</th>
-                    <th className="w-[12%] px-5 py-3 font-medium">Progresso</th>
+                    <th className="w-[9%] px-5 py-3 font-medium">Criado em</th>
+                    <th className="w-[6%] px-5 py-3 font-medium">Ano</th>
+                    <th className="w-[10%] px-5 py-3 font-medium">Progresso</th>
                     {podeEditar && (
                       <th className="w-[10%] px-5 py-3 text-right font-medium">
                         Ações
@@ -715,6 +761,11 @@ export function Planejamento() {
                       </td>
                       <td className="px-5 py-4 align-top text-muted-foreground">
                         {formatarData(item.created_at)}
+                      </td>
+                      <td className="px-5 py-4 align-top">
+                        <span className="border border-solid border-black/[.08] inline-flex w-fit rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                          {item.ano}
+                        </span>
                       </td>
                       <td className="px-5 py-4 align-top">
                         <div className="flex items-center gap-3">
@@ -770,7 +821,7 @@ export function Planejamento() {
                   {itens.length === 0 && (
                     <tr>
                       <td
-                        colSpan={podeEditar || podeExcluir ? 7 : 6}
+                        colSpan={podeEditar || podeExcluir ? 8 : 7}
                         className="px-5 py-10 text-center text-sm text-muted-foreground"
                       >
                         Nenhum planejamento cadastrado.
