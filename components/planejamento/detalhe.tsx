@@ -158,14 +158,16 @@ export function DetalhePlanejamento({ id }: { id: number }) {
                       <div
                         className="h-full rounded-full bg-bege"
                         style={{
-                          width: `${indicador.progresso ?? 0}%`,
+                          width: `${Math.min(100, indicador.progresso ?? 0)}%`,
                         }}
                       />
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {indicador.etapas.length === 0
                         ? "Sem etapas: o progresso é definido na validação."
-                        : `${indicador.etapas.length} etapa(s) cadastrada(s)`}
+                        : indicador.alvo != null
+                          ? `Alvo: ${indicador.alvo} de ${indicador.etapas.length} etapa(s)`
+                          : `${indicador.etapas.length} etapa(s) cadastrada(s)`}
                     </p>
                   </div>
 

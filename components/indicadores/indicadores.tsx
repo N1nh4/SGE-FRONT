@@ -692,7 +692,9 @@ export function Indicadores() {
                       data={[{ value: progressoMedio }]}
                       dataKey="value"
                       startAngle={90}
-                      endAngle={90 + (progressoMedio / 100) * 360}
+                      endAngle={
+                        90 + (Math.min(100, progressoMedio) / 100) * 360
+                      }
                       innerRadius={70}
                       outerRadius={94}
                       stroke="transparent"

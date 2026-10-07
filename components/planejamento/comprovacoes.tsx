@@ -267,7 +267,9 @@ export function PaginaComprovacoes({ indicadorId }: { indicadorId: number }) {
               <div className="h-2 w-32 overflow-hidden rounded-full bg-muted">
                 <div
                   className="h-full rounded-full bg-bege"
-                  style={{ width: `${indicador.progresso ?? 0}%` }}
+                  style={{
+                    width: `${Math.min(100, indicador.progresso ?? 0)}%`,
+                  }}
                 />
               </div>
               <span className="text-xs text-muted-foreground">

@@ -178,6 +178,12 @@ export type IndicadorPlanejamento = {
   prazo_efetivo: string | null;
   unidades: UnidadeResumo[];
   etapas: Etapa[];
+  // Percentual pedido na geração por colaborador. Quando existe, o progresso
+  // é aprovadas / alvo (e pode passar de 100%); quando nulo, aprovadas/etapas.
+  percentual_alvo: number | null;
+  // Alvo de aprovações calculado a partir do percentual. Nulo quando o
+  // indicador não é medido por colaborador.
+  alvo: number | null;
   // null quando o indicador não tem etapas: sem denominador não existe
   // progresso. Zero significa "mensurável e ainda não começou".
   progresso: number | null;

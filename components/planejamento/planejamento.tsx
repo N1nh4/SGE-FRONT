@@ -312,7 +312,10 @@ export function Planejamento() {
           unidadeIds: indicador.unidades.map((u) => String(u.id)),
           etapas: temGerada ? [] : indicador.etapas.map((e) => e.nome),
           porColaborador: todasGeradas,
-          percentualColaboradores: "100",
+          percentualColaboradores:
+            indicador.percentual_alvo != null
+              ? String(indicador.percentual_alvo)
+              : "100",
         };
       }),
     );
@@ -718,7 +721,9 @@ export function Planejamento() {
                           <div className="h-2 w-32 overflow-hidden rounded-full bg-muted">
                             <div
                               className="h-full rounded-full bg-bege"
-                              style={{ width: `${item.progresso ?? 0}%` }}
+                              style={{
+                                width: `${Math.min(100, item.progresso ?? 0)}%`,
+                              }}
                             />
                           </div>
                           <span className="text-xs text-muted-foreground">
