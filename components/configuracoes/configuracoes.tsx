@@ -224,7 +224,7 @@ export function Configuracoes() {
             </div>
             <button
               onClick={handleCriarPerfil}
-              className="flex items-center gap-1 rounded bg-azul-escuro px-3 py-1.5 text-sm font-medium text-white hover:bg-azul-escuro/90"
+              className="flex items-center gap-1 rounded bg-azul-escuro px-3 py-1.5 text-sm font-medium text-white hover:bg-azul-escuro/90 cursor-pointer"
             >
               <Plus className="size-4" />
               Criar
@@ -269,7 +269,7 @@ export function Configuracoes() {
                       setEditandoId(perfil.id);
                       setEditandoNome(perfil.nome);
                     }}
-                    className="text-gray-400 hover:text-azul-escuro"
+                    className="text-azul-escuro cursor-pointer"
                   >
                     <Pencil className="size-4" />
                   </button>
@@ -293,7 +293,7 @@ export function Configuracoes() {
                 ) : (
                   <button
                     onClick={() => setExcluindoId(perfil.id)}
-                    className="text-gray-400 hover:text-red-500"
+                    className=" text-red-500 cursor-pointer"
                   >
                     <Trash2 className="size-4" />
                   </button>

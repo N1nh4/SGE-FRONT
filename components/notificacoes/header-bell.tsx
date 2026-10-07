@@ -14,8 +14,8 @@ export function HeaderBell() {
       aria-label="Ver notificações"
       className="relative cursor-pointer"
     >
-      <Button variant="outline" size="icon" className="relative">
-        <Bell className="h-5 w-5" />
+      <Button variant="outline" size="icon" className="relative cursor-pointer">
+        <Bell className="h-5 w-5 " />
         {naoLidas > 0 && (
           <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold leading-none text-white">
             {naoLidas > 99 ? "99+" : naoLidas}
